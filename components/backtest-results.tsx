@@ -342,7 +342,7 @@ export function BacktestResults() {
         </div>
 
         {/* Rerun Button */}
-        <div className="flex justify-center">
+        <div className="flex justify-center mb-8">
           <Button
             variant="outline"
             onClick={() => setBacktestDialogOpen(true)}
