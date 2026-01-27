@@ -48,7 +48,7 @@ export function MainContentArea({ onCreateWithAI, onSwitchToEditor }: MainConten
               <path d="m19 9-5 5-4-4-3 3" />
             </svg>
           </div>
-          <h2 className="text-xl font-semibold mb-2">Welcome to StrategyForge</h2>
+          <h2 className="text-xl font-semibold mb-2">Welcome to NOFA</h2>
           <p className="text-muted-foreground mb-6">
             Build and backtest quantitative trading strategies with AI assistance.
             Create a new strategy from the sidebar or use AI to generate one.

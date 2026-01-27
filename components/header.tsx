@@ -16,16 +16,16 @@ import {
 import { useStrategyStore } from '@/lib/store/strategy-store';
 
 export function Header() {
-  const { 
-    history, 
-    undo, 
-    redo, 
-    canUndo, 
-    canRedo, 
+  const {
+    history,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
     updateStrategyName,
-    currentStrategyId 
+    currentStrategyId
   } = useStrategyStore();
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const nameRef = useRef<HTMLSpanElement>(null);
 
@@ -57,23 +57,7 @@ export function Header() {
       <div className="flex items-center gap-4">
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-primary-foreground"
-            >
-              <path d="M3 3v18h18" />
-              <path d="m19 9-5 5-4-4-3 3" />
-            </svg>
-          </div>
-          <span className="font-semibold text-foreground">StrategyForge</span>
+          <img src="/nofa-logo.svg" alt="NOFA Logo" className="h-[27px]" />
         </div>
 
         {/* Strategy Name (Editable) */}
