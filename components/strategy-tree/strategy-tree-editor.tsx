@@ -316,7 +316,7 @@ export function StrategyTreeEditor({ onCreateWithAI }: StrategyTreeEditorProps) 
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-3 text-xs hover:text-[#484848]"
+                    className="h-3 !pr-0 text-xs hover:text-[#484848]"
                     onClick={() => {
                       setJsonInput('');
                       setJsonError('');
