@@ -9,7 +9,7 @@ import './globals.css'
 // const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'NOFA v2 - AI Trading Strategy Builder',
+  title: 'NOFA Strategy - AI Trading Strategy Builder',
   description: 'Build and backtest quantitative trading strategies with AI assistance',
   generator: 'v0.app',
   icons: {
