@@ -109,6 +109,13 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest }: AIChatPanelProps
 
   useEffect(() => {
     scrollToBottom();
+    // Scroll code blocks to bottom for better UX with max-height
+    setTimeout(() => {
+      const codeBlocks = document.querySelectorAll('[data-streamdown="code-block-body"]');
+      codeBlocks.forEach(block => {
+        (block as HTMLElement).scrollTop = (block as HTMLElement).scrollHeight;
+      });
+    }, 0);
   }, [messages]);
 
   // Hydrate chat history per strategy after mount/change
@@ -292,6 +299,7 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest }: AIChatPanelProps
                 message={message}
                 onApplyStrategy={handleApplyStrategy}
                 onRunBacktest={onRunBacktest}
+                isGeneratingResponse={isGeneratingResponse}
               />
             ))
           )}
@@ -345,12 +353,15 @@ interface ChatMessageBubbleProps {
   message: UIMessage;
   onApplyStrategy: (strategy: StrategyTree) => void;
   onRunBacktest?: () => void;
+  isGeneratingResponse?: boolean;
 }
 
-function ChatMessageBubble({ message, onApplyStrategy, onRunBacktest }: ChatMessageBubbleProps) {
+function ChatMessageBubble({ message, onApplyStrategy, onRunBacktest, isGeneratingResponse }: ChatMessageBubbleProps) {
   const isUser = message.role === 'user';
   const [extractedStrategy, setExtractedStrategy] = useState<StrategyTree | null>(null);
   const [hasApplied, setHasApplied] = useState(false);
+  const strategyCardRef = useRef<HTMLDivElement>(null);
+
 
   // Extract strategy from tool calls
   useEffect(() => {
@@ -380,66 +391,25 @@ function ChatMessageBubble({ message, onApplyStrategy, onRunBacktest }: ChatMess
     setHasApplied(false);
   }, [extractedStrategy]);
 
+  // Scroll to strategy card when it appears
+  useEffect(() => {
+    if (extractedStrategy && strategyCardRef.current && !isGeneratingResponse) {
+      const scrollArea = strategyCardRef.current?.closest('[data-radix-scroll-area-viewport]') as HTMLElement;
+      if (scrollArea) {
+        scrollArea.scrollTop += 200;
+      }
+    }
+  }, [extractedStrategy, isGeneratingResponse]);
+
   // Get text content from message parts
   const getTextContent = () => {
     let textContent = '';
-
-    const looksLikeStrategyTree = (value: any) => {
-      if (!value || typeof value !== 'object') return false;
-      if (value.type === 'STRATEGY_TREE') return true;
-      if (value.strategyTree && value.strategyTree.type === 'STRATEGY_TREE') return true;
-      if (value.updatedTree && value.updatedTree.type === 'STRATEGY_TREE') return true;
-      if (Array.isArray(value) && value.length && value[0]?.type === 'STRATEGY_TREE') return true;
-      return false;
-    };
-
-    const extractAndFilterJSON = (text: string): string => {
-      // Try to find and remove JSON blocks that are strategy trees
-      let result = text;
-
-      // Match JSON objects: { ... }
-      const jsonObjectRegex = /\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\}/g;
-      const matches = text.match(jsonObjectRegex);
-
-      if (matches) {
-        for (const match of matches) {
-          try {
-            const parsed = JSON.parse(match);
-            if (looksLikeStrategyTree(parsed)) {
-              // Remove this JSON from the text
-              result = result.replace(match, '');
-            }
-          } catch {
-            // Not valid JSON or not a strategy tree, keep it
-          }
-        }
-      }
-
-      // Also check for inline markers and remove lines containing them
-      result = result
-        .split('\n')
-        .filter(line => {
-          const trimmedLine = line.trim();
-          return !(
-            trimmedLine.includes('"type":"STRATEGY_TREE"') ||
-            trimmedLine.includes('"strategyTree":{') ||
-            trimmedLine.includes('"updatedTree":{') ||
-            (trimmedLine.startsWith('{') && trimmedLine.includes('"type":"STRATEGY_TREE"'))
-          );
-        })
-        .join('\n');
-
-      return result.trim();
-    };
 
     if (message.parts) {
       for (const part of message.parts) {
         if (part.type === 'text') {
           const rawText = (part as any).text ?? '';
-          const filtered = extractAndFilterJSON(rawText);
-          if (filtered) {
-            textContent += filtered + '\n';
-          }
+          textContent += rawText;
         }
       }
     }
@@ -456,7 +426,7 @@ function ChatMessageBubble({ message, onApplyStrategy, onRunBacktest }: ChatMess
   };
 
   // Skip rendering entirely when there's no visible content to show
-  if (!textContent && !extractedStrategy) {
+  if (!textContent && (!extractedStrategy || isGeneratingResponse)) {
     return null;
   }
 
@@ -485,8 +455,8 @@ function ChatMessageBubble({ message, onApplyStrategy, onRunBacktest }: ChatMess
           </div>
         )}
 
-        {extractedStrategy && (
-          <div className="mt-3 p-3 rounded-md bg-card border border-border">
+        {extractedStrategy && !isGeneratingResponse && (
+          <div ref={strategyCardRef} className="mt-3 p-3 rounded-md bg-card border border-border">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-foreground">
                 Generated Strategy

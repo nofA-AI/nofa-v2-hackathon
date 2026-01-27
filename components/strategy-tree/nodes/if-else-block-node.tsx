@@ -239,21 +239,23 @@ export function IfElseBlockNode({
               IF
             </div>
             <div>
-              { block.name && <div className="text-sm font-medium truncate mb-1">{block.name}</div> }
-              <div className="min-h-[24px] flex items-center flex-wrap gap-1">
-                {block.conditions.map((condition, idx) => (
-                  <div key={idx} className="flex items-center gap-1">
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-                      {formatCondition(condition)}
-                    </span>
-                    {idx < block.conditions.length - 1 && (
-                      <span className="text-xs font-semibold text-muted-foreground">
-                        {block.logicalOperator || 'AND'}
+              { block.name && <div className="min-h-[24px] pt-[2px] text-sm font-medium truncate">{block.name}</div> }
+              {block.conditions.length > 0 && (
+                <div className="min-h-[24px] flex items-center flex-wrap gap-1 mt-[2px]">
+                  {block.conditions.map((condition, idx) => (
+                    <div key={idx} className="flex items-center gap-1">
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                        {formatCondition(condition)}
                       </span>
-                    )}
-                  </div>
-                ))}
-              </div>
+                      {idx < block.conditions.length - 1 && (
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {block.logicalOperator || 'AND'}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
