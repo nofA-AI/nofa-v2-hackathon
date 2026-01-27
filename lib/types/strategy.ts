@@ -7,6 +7,9 @@ export type OrderDirection = 'LONG' | 'SHORT';
 /** Value mode (percentage/fixed) */
 export type ValueMode = 'PCT' | 'FIXED';
 
+/** Risk management scope */
+export type RiskScope = 'Per Position' | 'Per Strategy' | 'Per Symbol' | 'Global';
+
 /** Comparison operator */
 export type CompareOperator = 'Greater Than' | 'Less Than' | 'Equal';
 
@@ -53,7 +56,7 @@ export interface StopLossTakeProfit {
 export interface RiskManagement {
   type: 'RISK_MANAGEMENT';
   name: string;
-  scope: 'Per Position';
+  scope: RiskScope;
   stopLoss: StopLossTakeProfit;
   takeProfit: StopLossTakeProfit;
 }

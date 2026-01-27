@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { RiskManagement, ValueMode } from '@/lib/types/strategy';
+import { RiskManagement, ValueMode, RiskScope } from '@/lib/types/strategy';
 
 interface RiskManagementNodeProps {
   risk: RiskManagement;
@@ -127,6 +127,26 @@ export function RiskManagementNode({
                   setEditValues({ ...editValues, name: e.target.value })
                 }
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Scope</Label>
+              <Select
+                value={editValues.scope || 'Per Position'}
+                onValueChange={(v) =>
+                  setEditValues({ ...editValues, scope: v as any })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Per Position">Per Position - Risk applies to individual positions</SelectItem>
+                  <SelectItem value="Per Strategy">Per Strategy - Risk applies to the entire strategy</SelectItem>
+                  <SelectItem value="Per Symbol">Per Symbol - Risk applies per trading pair</SelectItem>
+                  <SelectItem value="Global">Global - Risk applies globally (account-wide)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

@@ -61,6 +61,13 @@ type LogicalOperator = 'AND' | 'OR';
 /** 仓位配置模式 */
 type AllocateMode = 'WEIGHT' | 'MARGIN'; // 权重/保证金数值
 
+/** 风险管理作用范围 */
+type RiskScope =
+  | 'Per Position'       // 按单个仓位生效（原默认值）
+  | 'Per Strategy'       // 按整个策略生效
+  | 'Per Symbol'         // 按标的维度生效（同标的下所有仓位共享）
+  | 'Global';            // 全局生效（账户维度）
+
 /** 单个交易动作 Block（支持独立配置标的、方向、仓位、杠杆） */
 interface ActionBlock {
   /** Block 名称（可修改） */
@@ -84,8 +91,8 @@ interface ActionBlock {
 interface RiskManagement {
   /** 配置名称（可修改） */
   name: string;
-  /** 作用范围（固定为每个仓位） */
-  scope: 'Per Position';
+  /** 作用范围 */
+  scope: RiskScope;
   /** 止损配置 */
   stopLoss: {
     mode: ValueMode;
@@ -156,7 +163,7 @@ type StrategyTreeJSON = Omit<StrategyTree, 'description'> & {
 | `strategyTree.mainDecision` | 单个 IF_ELSE_BLOCK 节点或非空 IF_ELSE_BLOCK 节点数组，每个元素需符合 IF_ELSE_BLOCK 类型约束 | 主决策节点需为合法的 IF_ELSE_BLOCK 节点或非空数组 |
 | `riskManagement.type` | 固定为 'RISK_MANAGEMENT' | 风险管理节点 type 必须为 'RISK_MANAGEMENT' |
 | `riskManagement.name` | 非空字符串，长度 1-100 字符 | 风险管理名称不能为空，长度需在 1-100 字符之间 |
-| `riskManagement.scope` | 固定为 'Per Position' | 风险管理作用范围固定为每个仓位（Per Position） |
+| `riskManagement.scope` | 必须为 'Per Position'、'Per Strategy'、'Per Symbol' 或 'Global' 之一，默认为 'Per Position' | 风险管理作用范围必须是有效的 scope 类型 |
 | `riskManagement.stopLoss.mode` | 必须为 'PCT' 或 'FIXED' | 止损模式仅支持百分比（PCT）或固定值（FIXED） |
 | `riskManagement.stopLoss.value` | 百分比模式：0 < value ≤ 1；固定值模式：value > 0 | 止损值必须为正数，百分比模式需在 0-100% 之间 |
 | `riskManagement.takeProfit.mode` | 必须为 'PCT' 或 'FIXED' | 止盈模式仅支持百分比（PCT）或固定值（FIXED） |
