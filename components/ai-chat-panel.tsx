@@ -362,12 +362,11 @@ function ChatMessageBubble({ message, onApplyStrategy, onRunBacktest, isGenerati
   const [hasApplied, setHasApplied] = useState(false);
   const strategyCardRef = useRef<HTMLDivElement>(null);
 
-
   // Extract strategy from tool calls
   useEffect(() => {
     if (!isUser && message.parts) {
       for (const part of message.parts) {
-        if (part.type === 'tool-generateStrategyTree' || part.type === 'tool-updateStrategyTree') {
+        if (part.type === 'tool-generateStrategyTree' || part.type === 'tool-updateStrategyTree' || part.type === 'tool-editStrategyTree') {
           try {
             const toolResult = part as any;
             const result = typeof toolResult.output === 'string'
