@@ -308,9 +308,24 @@ export function StrategyTreeEditor({ onCreateWithAI }: StrategyTreeEditorProps) 
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-1">
+          <div className="space-y-4 py-4 max-h-[70vh] pr-1">
             <div className="space-y-2">
-              <Label>Strategy Tree JSON</Label>
+              <div className="flex items-center justify-between">
+                <Label>Strategy Tree JSON</Label>
+                {jsonInput.trim() && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-3 text-xs hover:text-[#484848]"
+                    onClick={() => {
+                      setJsonInput('');
+                      setJsonError('');
+                    }}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
               <Textarea
                 value={jsonInput}
                 onChange={(e) => {
