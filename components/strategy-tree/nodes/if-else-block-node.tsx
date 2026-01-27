@@ -221,7 +221,7 @@ export function IfElseBlockNode({
               e.stopPropagation();
               onToggle();
             }}
-            className="w-4 h-4 flex items-center justify-center text-muted-foreground"
+            className="w-4 h-4 flex items-center justify-center text-muted-foreground relative top-1"
           >
             {expanded ? (
               <CaretDown className="w-3 h-3" weight="bold" />

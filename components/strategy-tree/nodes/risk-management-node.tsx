@@ -97,16 +97,24 @@ export function RiskManagementNode({
         </div>
 
         {expanded && (
-          <div className="ml-10 mt-2 space-y-1 text-sm text-muted-foreground">
-            <div>Scope: {risk.scope}</div>
-            <div>
-              Stop Loss: {formatValue(risk.stopLoss.mode, risk.stopLoss.value)} (
-              {risk.stopLoss.mode})
+          <div className="ml-6 mt-3 mb-3 space-y-1.5">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-orange-600 uppercase tracking-wide min-w-12">Scope</span>
+              <span className="text-sm text-foreground font-medium">{risk.scope}</span>
             </div>
-            <div>
-              Take Profit:{' '}
-              {formatValue(risk.takeProfit.mode, risk.takeProfit.value)} (
-              {risk.takeProfit.mode})
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-orange-600 uppercase tracking-wide min-w-20">Stop Loss</span>
+              <span className="text-sm text-foreground font-medium">
+                {formatValue(risk.stopLoss.mode, risk.stopLoss.value)}
+              </span>
+              <span className="text-xs text-muted-foreground">({risk.stopLoss.mode})</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-orange-600 uppercase tracking-wide min-w-24">Take Profit</span>
+              <span className="text-sm text-foreground font-medium">
+                {formatValue(risk.takeProfit.mode, risk.takeProfit.value)}
+              </span>
+              <span className="text-xs text-muted-foreground">({risk.takeProfit.mode})</span>
             </div>
           </div>
         )}
