@@ -3,9 +3,19 @@
 import React from "react"
 
 import { useState } from 'react';
-import { CaretDown, CaretRight, Plus, Sparkle } from '@phosphor-icons/react';
+import { CaretDown, CaretRight, Plus, Sparkle, ClipboardText } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +50,9 @@ export function StrategyTreeEditor({ onCreateWithAI }: StrategyTreeEditorProps) 
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
     new Set(['root', 'risk', 'main'])
   );
+  const [pasteDialogOpen, setPasteDialogOpen] = useState(false);
+  const [jsonInput, setJsonInput] = useState('');
+  const [jsonError, setJsonError] = useState('');
 
   const toggleExpand = (nodeId: string) => {
     setExpandedNodes((prev) => {
@@ -105,6 +118,41 @@ export function StrategyTreeEditor({ onCreateWithAI }: StrategyTreeEditorProps) 
     }
   };
 
+  const validateStrategyTree = (data: unknown): data is StrategyTree => {
+    if (!data || typeof data !== 'object') return false;
+    const tree = data as Record<string, unknown>;
+
+    // Check required fields
+    if (tree.type !== 'STRATEGY_TREE') return false;
+    if (typeof tree.name !== 'string' || !tree.name) return false;
+    if (!tree.riskManagement || typeof tree.riskManagement !== 'object') return false;
+    if (!tree.mainDecision) return false;
+
+    return true;
+  };
+
+  const handlePasteJson = () => {
+    setJsonError('');
+    try {
+      const parsed = JSON.parse(jsonInput);
+
+      if (!validateStrategyTree(parsed)) {
+        setJsonError('Invalid strategy tree structure. Please check the JSON format.');
+        return;
+      }
+
+      // Update the strategy tree
+      updateStrategyTree(parsed as StrategyTree);
+
+      // Close dialog and reset
+      setPasteDialogOpen(false);
+      setJsonInput('');
+      setJsonError('');
+    } catch (error) {
+      setJsonError('Invalid JSON format. Please check your input.');
+    }
+  };
+
   if (!currentStrategyId) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
@@ -121,8 +169,17 @@ export function StrategyTreeEditor({ onCreateWithAI }: StrategyTreeEditorProps) 
   return (
     <div className="h-full flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-border flex-shrink-0">
+      <div className="flex items-center justify-between p-3 border-b border-border flex-shrink-0 h-[49px]">
         <h2 className="font-medium text-sm">Strategy Tree</h2>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-2 h-7 hover:bg-primary/10 hover:text-primary"
+          onClick={() => setPasteDialogOpen(true)}
+        >
+          <ClipboardText className="w-4 h-4" />
+          Paste JSON
+        </Button>
       </div>
 
       {/* Tree Content */}
@@ -236,6 +293,52 @@ export function StrategyTreeEditor({ onCreateWithAI }: StrategyTreeEditorProps) 
           </div>
         </div>
       </ScrollArea>
+
+      {/* Paste JSON Dialog */}
+      <Dialog open={pasteDialogOpen} onOpenChange={setPasteDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Paste Strategy Tree JSON</DialogTitle>
+            <DialogDescription>
+              Paste your strategy tree JSON below. The format will be validated before applying.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-1">
+            <div className="space-y-2">
+              <Label>Strategy Tree JSON</Label>
+              <Textarea
+                value={jsonInput}
+                onChange={(e) => {
+                  setJsonInput(e.target.value);
+                  setJsonError('');
+                }}
+                placeholder='{"type": "STRATEGY_TREE", "name": "My Strategy", ...}'
+                className="min-h-[240px] max-h-[50vh] font-mono text-sm"
+              />
+              {jsonError && (
+                <p className="text-sm text-destructive">{jsonError}</p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPasteDialogOpen(false);
+                setJsonInput('');
+                setJsonError('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handlePasteJson} disabled={!jsonInput.trim()}>
+              Apply JSON
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
