@@ -55,6 +55,9 @@ type IndicatorType =
 /** 条件类型 */
 type ConditionType = 'Compare' | 'Cross';
 
+/** 条件逻辑运算符（用于组合多个条件） */
+type LogicalOperator = 'AND' | 'OR';
+
 /** 仓位配置模式 */
 type AllocateMode = 'WEIGHT' | 'MARGIN'; // 权重/保证金数值
 
@@ -109,7 +112,7 @@ interface ConditionItem {
   value: number | { indicator: IndicatorType; period: number; symbol: Symbol };
 }
 
-/** IF/ELSE 条件块（支持单条件/多条件And逻辑，动作支持多Block） */
+/** IF/ELSE 条件块（支持单条件/多条件 AND/OR 逻辑，动作支持多Block） */
 interface IfElseBlock {
   /** 块名称（可修改） */
   name: string;
@@ -117,6 +120,8 @@ interface IfElseBlock {
   conditionType: ConditionType;
   /** 条件列表（多条件时默认按 And 逻辑组合） */
   conditions: ConditionItem[];
+  /** 条件逻辑运算符（可选，默认为 'AND'，一组条件只能全部使用 AND 或全部使用 OR） */
+  logicalOperator?: LogicalOperator;
   /** 满足条件时的动作（支持多个ActionBlock或嵌套IF/ELSE块） */
   thenAction: (ActionBlock | IfElseBlock)[] | 'NO ACTION';
   /** 不满足条件时的动作（支持多个ActionBlock或嵌套IF/ELSE块） */
@@ -160,6 +165,7 @@ type StrategyTreeJSON = Omit<StrategyTree, 'description'> & {
 | `ifElseBlock.name` | 非空字符串，长度 1-100 字符 | IF/ELSE 块名称不能为空，长度需在 1-100 字符之间 |
 | `ifElseBlock.conditionType` | 必须为 'Compare' 或 'Cross' | 条件类型仅支持 Compare 或 Cross |
 | `ifElseBlock.conditions` | 数组长度 ≥ 1；每个元素必须是 type 为 'CONDITION_ITEM' 的合法节点 | 条件列表不能为空，且每个条件必须是合法的 CONDITION_ITEM 节点 |
+| `ifElseBlock.logicalOperator` | 可选字段，必须为 'AND' 或 'OR'，默认为 'AND'；一组条件只能统一使用 AND 或 OR，不能混合 | 条件逻辑运算符仅支持 AND 或 OR，且一组条件只能使用单一逻辑 |
 | `ifElseBlock.thenAction` | 允许值为 'NO ACTION' 或非空数组；数组元素必须是 type 为 'ACTION_BLOCK' 或 'IF_ELSE_BLOCK' 的合法节点 | 动作配置不合法：支持 NO ACTION 或非空的多Block数组（ACTION_BLOCK/IF_ELSE_BLOCK 节点） |
 | `ifElseBlock.elseAction` | 允许值为 'NO ACTION' 或非空数组；数组元素必须是 type 为 'ACTION_BLOCK' 或 'IF_ELSE_BLOCK' 的合法节点 | 动作配置不合法：支持 NO ACTION 或非空的多Block数组（ACTION_BLOCK/IF_ELSE_BLOCK 节点） |
 | `conditionItem.type` | 固定为 'CONDITION_ITEM' | 单条件节点 type 必须为 'CONDITION_ITEM' |

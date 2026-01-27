@@ -37,6 +37,7 @@ import {
   ConditionType,
   IndicatorType,
   CompareOperator,
+  LogicalOperator,
   Symbol as SymbolType,
   AVAILABLE_INDICATORS,
   AVAILABLE_SYMBOLS,
@@ -209,7 +210,7 @@ export function IfElseBlockNode({
             IF
           </span>
           <span className="text-xs text-muted-foreground">
-            {block.conditions.map(formatCondition).join(' AND ')}
+            {block.conditions.map(formatCondition).join(` ${block.logicalOperator || 'AND'} `)}
           </span>
         </div>
 
@@ -426,7 +427,7 @@ export function IfElseBlockNode({
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 hidden">
               <Label>Condition Type</Label>
               <Select
                 value={editValues.conditionType}
@@ -445,115 +446,144 @@ export function IfElseBlockNode({
             </div>
 
             <div className="space-y-3">
-              <Label>Conditions</Label>
+              <div className="flex items-center justify-between">
+                <Label>Conditions</Label>
+                {editValues.conditions.length > 1 && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground">Logic:</Label>
+                    <Select
+                      value={editValues.logicalOperator || 'AND'}
+                      onValueChange={(v: LogicalOperator) =>
+                        setEditValues({ ...editValues, logicalOperator: v })
+                      }
+                    >
+                      <SelectTrigger className="h-7 w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="AND">AND</SelectItem>
+                        <SelectItem value="OR">OR</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
               {editValues.conditions.map((condition, index) => (
-                <div
-                  key={index}
-                  className="p-3 bg-muted rounded-md space-y-2 relative"
-                >
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-0 right-0 h-8 w-8 text-destructive"
-                    onClick={() => {
-                      const newConditions = editValues.conditions.filter(
-                        (_, i) => i !== index
-                      );
-                      setEditValues({
-                        ...editValues,
-                        conditions: newConditions,
-                      });
-                    }}
+                <div key={index}>
+                  <div
+                    className="p-3 bg-muted rounded-md space-y-2 relative"
                   >
-                    <Trash className="w-4 h-4" />
-                  </Button>
-                  <div className="flex gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Indicator</Label>
-                      <Select
-                        value={condition.indicator}
-                        onValueChange={(v: IndicatorType) =>
-                          updateCondition(index, 'indicator', v)
-                        }
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {AVAILABLE_INDICATORS.map((ind) => (
-                            <SelectItem key={ind} value={ind}>
-                              {ind}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Period</Label>
-                      <Input
-                        type="number"
-                        className="h-8"
-                        value={condition.period}
-                        onChange={(e) =>
-                          updateCondition(index, 'period', Number(e.target.value))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Symbol</Label>
-                      <Select
-                        value={condition.symbol}
-                        onValueChange={(v: SymbolType) =>
-                          updateCondition(index, 'symbol', v)
-                        }
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {AVAILABLE_SYMBOLS.map((sym) => (
-                            <SelectItem key={sym} value={sym}>
-                              {sym}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Operator</Label>
-                      <Select
-                        value={condition.operator}
-                        onValueChange={(v: CompareOperator) =>
-                          updateCondition(index, 'operator', v)
-                        }
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Greater Than">{'>'}</SelectItem>
-                          <SelectItem value="Less Than">{'<'}</SelectItem>
-                          <SelectItem value="Equal">=</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1 col-span-2">
-                      <Label className="text-xs">Value</Label>
-                      <Input
-                        type="number"
-                        className="h-8"
-                        value={
-                          typeof condition.value === 'number'
-                            ? condition.value
-                            : 0
-                        }
-                        onChange={(e) =>
-                          updateCondition(index, 'value', Number(e.target.value))
-                        }
-                      />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-0 right-0 h-8 w-8 text-destructive"
+                      onClick={() => {
+                        const newConditions = editValues.conditions.filter(
+                          (_, i) => i !== index
+                        );
+                        setEditValues({
+                          ...editValues,
+                          conditions: newConditions,
+                        });
+                      }}
+                    >
+                      <Trash className="w-4 h-4" />
+                    </Button>
+                    <div className="flex gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Indicator</Label>
+                        <Select
+                          value={condition.indicator}
+                          onValueChange={(v: IndicatorType) =>
+                            updateCondition(index, 'indicator', v)
+                          }
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {AVAILABLE_INDICATORS.map((ind) => (
+                              <SelectItem key={ind} value={ind}>
+                                {ind}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Period</Label>
+                        <Input
+                          type="number"
+                          className="h-8"
+                          value={condition.period}
+                          onChange={(e) =>
+                            updateCondition(index, 'period', Number(e.target.value))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Symbol</Label>
+                        <Select
+                          value={condition.symbol}
+                          onValueChange={(v: SymbolType) =>
+                            updateCondition(index, 'symbol', v)
+                          }
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {AVAILABLE_SYMBOLS.map((sym) => (
+                              <SelectItem key={sym} value={sym}>
+                                {sym}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Operator</Label>
+                        <Select
+                          value={condition.operator}
+                          onValueChange={(v: CompareOperator) =>
+                            updateCondition(index, 'operator', v)
+                          }
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Greater Than">{'>'}</SelectItem>
+                            <SelectItem value="Less Than">{'<'}</SelectItem>
+                            <SelectItem value="Equal">=</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1 col-span-2">
+                        <Label className="text-xs">Value</Label>
+                        <Input
+                          type="number"
+                          className="h-8"
+                          value={
+                            typeof condition.value === 'number'
+                              ? condition.value
+                              : 0
+                          }
+                          onChange={(e) =>
+                            updateCondition(index, 'value', Number(e.target.value))
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
+                  {index < editValues.conditions.length - 1 && (
+                    <div className="flex justify-center py-1 -mb-3">
+                      <span className="text-xs font-semibold text-primary px-2 py-0.5 bg-primary/10 rounded">
+                        {editValues.logicalOperator || 'AND'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
               <Button

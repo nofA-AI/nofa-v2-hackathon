@@ -87,12 +87,16 @@ export interface ActionBlock {
   riskManagement?: Partial<RiskManagement>;
 }
 
+/** Logical operator for combining conditions */
+export type LogicalOperator = 'AND' | 'OR';
+
 /** IF/ELSE condition block */
 export interface IfElseBlock {
   type: 'IF_ELSE_BLOCK';
   name: string;
   conditionType: ConditionType;
   conditions: ConditionItem[];
+  logicalOperator?: LogicalOperator;
   thenAction: (ActionBlock | IfElseBlock)[] | 'NO ACTION';
   elseAction: (ActionBlock | IfElseBlock)[] | 'NO ACTION';
 }

@@ -397,7 +397,7 @@ function PerformanceChart({ data, benchmarkData }: PerformanceChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!chartRef.current || data.length === 0) return;
+    if (!chartRef.current || data.length === 0 || !benchmarkData || benchmarkData.length === 0) return;
 
     const chart = echarts.init(chartRef.current);
 
