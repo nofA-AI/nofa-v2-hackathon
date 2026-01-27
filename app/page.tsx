@@ -9,6 +9,8 @@ import { AIChatPanel } from '@/components/ai-chat-panel';
 export default function HomePage() {
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const switchToEditorRef = useRef<(() => void) | null>(null);
+  const switchToBacktestRef = useRef<(() => void) | null>(null);
+  const runBacktestRef = useRef<(() => Promise<void>) | null>(null);
 
   const handleCreateWithAI = () => {
     // Focus the AI chat input
@@ -19,8 +21,21 @@ export default function HomePage() {
     switchToEditorRef.current = handler;
   };
 
+  const handleSwitchToBacktest = (handler: () => void) => {
+    switchToBacktestRef.current = handler;
+  };
+
+  const handleRegisterRunBacktest = (runner: () => Promise<void>) => {
+    runBacktestRef.current = runner;
+  };
+
   const handleApplyStrategy = () => {
     switchToEditorRef.current?.();
+  };
+
+  const handleRunBacktest = () => {
+    switchToBacktestRef.current?.();
+    runBacktestRef.current?.();
   };
 
   return (
@@ -31,8 +46,10 @@ export default function HomePage() {
         <MainContentArea
           onCreateWithAI={handleCreateWithAI}
           onSwitchToEditor={handleSwitchToEditor}
+          onSwitchToBacktest={handleSwitchToBacktest}
+          onRegisterRunBacktest={handleRegisterRunBacktest}
         />
-        <AIChatPanel onApplyStrategy={handleApplyStrategy} />
+        <AIChatPanel onApplyStrategy={handleApplyStrategy} onRunBacktest={handleRunBacktest} />
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, ArrowsClockwise, ChartLine, Calendar, Wallet, Warning } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import {
@@ -122,7 +122,11 @@ const mockRunBacktest = async (
   };
 };
 
-export function BacktestResults() {
+interface BacktestResultsProps {
+  onReadyToRunBacktest?: (runner: () => Promise<void>) => void;
+}
+
+export function BacktestResults({ onReadyToRunBacktest }: BacktestResultsProps) {
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [backtestParams, setBacktestParams] = useState<BacktestParams>({
@@ -152,8 +156,8 @@ export function BacktestResults() {
     mainDecision.conditions.length > 0 &&
     (mainDecision.thenAction !== 'NO ACTION' || mainDecision.elseAction !== 'NO ACTION');
 
-  const handleRunBacktest = async () => {
-    if (!currentStrategyId) return;
+  const runBacktest = useCallback(async () => {
+    if (!currentStrategyId || !isStrategyValid) return;
 
     setIsRunning(true);
     setBacktestDialogOpen(false);
@@ -166,7 +170,13 @@ export function BacktestResults() {
     } finally {
       setIsRunning(false);
     }
-  };
+  }, [currentStrategyId, isStrategyValid, backtestParams, addBacktestResult]);
+
+  useEffect(() => {
+    if (onReadyToRunBacktest) {
+      onReadyToRunBacktest(runBacktest);
+    }
+  }, [onReadyToRunBacktest, runBacktest]);
 
   if (!currentStrategyId) {
     return (
@@ -221,7 +231,7 @@ export function BacktestResults() {
           onOpenChange={setBacktestDialogOpen}
           params={backtestParams}
           onParamsChange={setBacktestParams}
-          onRun={handleRunBacktest}
+          onRun={runBacktest}
         />
       </div>
     );
@@ -359,7 +369,7 @@ export function BacktestResults() {
         onOpenChange={setBacktestDialogOpen}
         params={backtestParams}
         onParamsChange={setBacktestParams}
-        onRun={handleRunBacktest}
+        onRun={runBacktest}
       />
     </ScrollArea>
   );

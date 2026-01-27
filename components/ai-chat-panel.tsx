@@ -3,22 +3,24 @@
 import React from "react"
 
 import { useState, useRef, useEffect } from 'react';
-import { PaperPlaneTilt, Sparkle, Lightning, Lightbulb, ChartLine } from '@phosphor-icons/react';
+import { PaperPlaneTilt, Sparkle, Lightning, Lightbulb, ChartLine, Play } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useStrategyStore } from '@/lib/store/strategy-store';
 import { StrategyTree } from '@/lib/types/strategy';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { Streamdown } from "streamdown";
 import { useChat } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
 import { toast } from 'sonner';
 import { modelID, models } from '@/lib/models';
+import './streamdown.css';
+import { code } from "./code";
 
 interface AIChatPanelProps {
   onApplyStrategy?: (strategy: StrategyTree) => void;
+  onRunBacktest?: () => void;
 }
 
 const quickStartPrompts = [
@@ -42,7 +44,20 @@ const quickStartPrompts = [
   },
 ];
 
-export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
+const getStorageKey = (strategyId?: string | null) => `aiChatMessages:${strategyId || 'default'}`;
+
+const loadStoredMessages = (storageKey: string): UIMessage[] => {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const raw = localStorage.getItem(storageKey);
+    return raw ? (JSON.parse(raw) as UIMessage[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+export function AIChatPanel({ onApplyStrategy, onRunBacktest }: AIChatPanelProps) {
   const [input, setInput] = useState('');
   const [width, setWidth] = useState(360);
   const [isResizing, setIsResizing] = useState(false);
@@ -53,7 +68,9 @@ export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
 
   const { currentStrategyId, updateStrategyTree } = useStrategyStore();
 
-  const { messages, sendMessage, status, stop } = useChat({
+  const storageKey = getStorageKey(currentStrategyId);
+
+  const { messages, setMessages, sendMessage, status, stop } = useChat({
     id: currentStrategyId || 'default',
     onError: () => {
       toast.error('An error occurred, please try again!');
@@ -61,6 +78,20 @@ export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
   });
 
   const isGeneratingResponse = ['streaming', 'submitted'].includes(status);
+
+  const assistantHasVisibleContent = React.useMemo(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage || lastMessage.role !== 'assistant' || !lastMessage.parts) return false;
+
+    let text = '';
+    for (const part of lastMessage.parts) {
+      if (part.type === 'text') {
+        text += (part as any).text;
+      }
+    }
+
+    return text.trim().length > 0;
+  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -79,6 +110,27 @@ export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Hydrate chat history per strategy after mount/change
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const stored = loadStoredMessages(storageKey);
+    if (stored.length) {
+      setMessages(stored);
+    }
+  }, [storageKey, setMessages]);
+
+  // Persist chat history per strategy
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(messages));
+    } catch {
+      // Ignore persistence errors
+    }
+  }, [messages, storageKey]);
 
   // 保存宽度到 localStorage（仅在不处于拖动状态时保存）
   useEffect(() => {
@@ -239,11 +291,12 @@ export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
                 key={message.id}
                 message={message}
                 onApplyStrategy={handleApplyStrategy}
+                onRunBacktest={onRunBacktest}
               />
             ))
           )}
 
-          {isGeneratingResponse && (
+          {isGeneratingResponse && !assistantHasVisibleContent && (
             <div className="flex items-start gap-2">
               <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                 <Sparkle className="w-3 h-3 text-primary-foreground" weight="fill" />
@@ -291,22 +344,24 @@ export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
 interface ChatMessageBubbleProps {
   message: UIMessage;
   onApplyStrategy: (strategy: StrategyTree) => void;
+  onRunBacktest?: () => void;
 }
 
-function ChatMessageBubble({ message, onApplyStrategy }: ChatMessageBubbleProps) {
+function ChatMessageBubble({ message, onApplyStrategy, onRunBacktest }: ChatMessageBubbleProps) {
   const isUser = message.role === 'user';
   const [extractedStrategy, setExtractedStrategy] = useState<StrategyTree | null>(null);
+  const [hasApplied, setHasApplied] = useState(false);
 
   // Extract strategy from tool calls
   useEffect(() => {
     if (!isUser && message.parts) {
       for (const part of message.parts) {
-        if (part.type === 'tool-result') {
+        if (part.type === 'tool-generateStrategyTree' || part.type === 'tool-updateStrategyTree') {
           try {
             const toolResult = part as any;
-            const result = typeof toolResult.result === 'string'
-              ? JSON.parse(toolResult.result)
-              : toolResult.result;
+            const result = typeof toolResult.output === 'string'
+              ? JSON.parse(toolResult.output)
+              : toolResult.output;
 
             if (result.success && result.strategyTree) {
               setExtractedStrategy(result.strategyTree);
@@ -321,25 +376,92 @@ function ChatMessageBubble({ message, onApplyStrategy }: ChatMessageBubbleProps)
     }
   }, [message.parts, isUser]);
 
+  useEffect(() => {
+    setHasApplied(false);
+  }, [extractedStrategy]);
+
   // Get text content from message parts
   const getTextContent = () => {
     let textContent = '';
 
+    const looksLikeStrategyTree = (value: any) => {
+      if (!value || typeof value !== 'object') return false;
+      if (value.type === 'STRATEGY_TREE') return true;
+      if (value.strategyTree && value.strategyTree.type === 'STRATEGY_TREE') return true;
+      if (value.updatedTree && value.updatedTree.type === 'STRATEGY_TREE') return true;
+      if (Array.isArray(value) && value.length && value[0]?.type === 'STRATEGY_TREE') return true;
+      return false;
+    };
+
+    const extractAndFilterJSON = (text: string): string => {
+      // Try to find and remove JSON blocks that are strategy trees
+      let result = text;
+
+      // Match JSON objects: { ... }
+      const jsonObjectRegex = /\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\}/g;
+      const matches = text.match(jsonObjectRegex);
+
+      if (matches) {
+        for (const match of matches) {
+          try {
+            const parsed = JSON.parse(match);
+            if (looksLikeStrategyTree(parsed)) {
+              // Remove this JSON from the text
+              result = result.replace(match, '');
+            }
+          } catch {
+            // Not valid JSON or not a strategy tree, keep it
+          }
+        }
+      }
+
+      // Also check for inline markers and remove lines containing them
+      result = result
+        .split('\n')
+        .filter(line => {
+          const trimmedLine = line.trim();
+          return !(
+            trimmedLine.includes('"type":"STRATEGY_TREE"') ||
+            trimmedLine.includes('"strategyTree":{') ||
+            trimmedLine.includes('"updatedTree":{') ||
+            (trimmedLine.startsWith('{') && trimmedLine.includes('"type":"STRATEGY_TREE"'))
+          );
+        })
+        .join('\n');
+
+      return result.trim();
+    };
+
     if (message.parts) {
       for (const part of message.parts) {
         if (part.type === 'text') {
-          textContent += (part as any).text;
+          const rawText = (part as any).text ?? '';
+          const filtered = extractAndFilterJSON(rawText);
+          if (filtered) {
+            textContent += filtered + '\n';
+          }
         }
       }
     }
 
-    return textContent;
+    return textContent.trim();
   };
 
   const textContent = getTextContent();
 
+  const handleApply = () => {
+    if (!extractedStrategy) return;
+    onApplyStrategy(extractedStrategy);
+    setHasApplied(true);
+  };
+
+  // Skip rendering entirely when there's no visible content to show
+  if (!textContent && !extractedStrategy) {
+    return null;
+  }
+
   return (
-    <div className={cn('flex items-start gap-2', isUser && 'flex-row-reverse')}>
+    <div className={cn('flex items-start gap-2', isUser && 'justify-end')}>
       {!isUser && (
         <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
           <Sparkle className="w-3 h-3 text-primary-foreground" weight="fill" />
@@ -348,20 +470,18 @@ function ChatMessageBubble({ message, onApplyStrategy }: ChatMessageBubbleProps)
 
       <div
         className={cn(
-          'flex-1 min-w-0 p-3 rounded-lg',
-          isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'
+          'min-w-0 p-3 rounded-lg',
+          isUser ? 'bg-primary text-primary-foreground' : 'flex-1 bg-muted'
         )}
       >
         {textContent && (
           <div className={cn(
             'text-sm break-words prose prose-sm max-w-none',
             isUser ? 'prose-invert' : 'prose-slate',
-            '[&>*]:my-2 [&>ul]:my-2 [&>ol]:my-2 [&>li]:my-1 [&>p]:leading-normal',
-            '[&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5'
           )}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <Streamdown plugins={{ code }}>
               {textContent}
-            </ReactMarkdown>
+            </Streamdown>
           </div>
         )}
 
@@ -378,11 +498,23 @@ function ChatMessageBubble({ message, onApplyStrategy }: ChatMessageBubbleProps)
             <Button
               size="sm"
               className="w-full gap-2"
-              onClick={() => onApplyStrategy(extractedStrategy)}
+              onClick={handleApply}
+              disabled={hasApplied}
             >
               <ChartLine className="w-4 h-4" />
-              Apply Strategy
+              {hasApplied ? 'Strategy Applied' : 'Apply Strategy'}
             </Button>
+            {hasApplied && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full gap-2 mt-2"
+                onClick={() => onRunBacktest?.()}
+              >
+                <Play className="w-4 h-4" />
+                Run Backtest
+              </Button>
+            )}
           </div>
         )}
       </div>

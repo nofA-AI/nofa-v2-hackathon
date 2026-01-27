@@ -9,9 +9,11 @@ import { useStrategyStore } from '@/lib/store/strategy-store';
 interface MainContentAreaProps {
   onCreateWithAI?: () => void;
   onSwitchToEditor?: (handler: () => void) => void;
+  onSwitchToBacktest?: (handler: () => void) => void;
+  onRegisterRunBacktest?: (runner: () => Promise<void>) => void;
 }
 
-export function MainContentArea({ onCreateWithAI, onSwitchToEditor }: MainContentAreaProps) {
+export function MainContentArea({ onCreateWithAI, onSwitchToEditor, onSwitchToBacktest, onRegisterRunBacktest }: MainContentAreaProps) {
   const [activeTab, setActiveTab] = useState('editor');
   const { currentStrategyId, createStrategy } = useStrategyStore();
 
@@ -23,9 +25,17 @@ export function MainContentArea({ onCreateWithAI, onSwitchToEditor }: MainConten
     setActiveTab('editor');
   };
 
+  const switchToBacktest = () => {
+    setActiveTab('backtest');
+  };
+
   // Expose switchToEditor to parent
   if (onSwitchToEditor) {
     onSwitchToEditor(switchToEditor);
+  }
+
+  if (onSwitchToBacktest) {
+    onSwitchToBacktest(switchToBacktest);
   }
 
   if (!currentStrategyId) {
@@ -91,7 +101,7 @@ export function MainContentArea({ onCreateWithAI, onSwitchToEditor }: MainConten
         </TabsContent>
 
         <TabsContent value="backtest" className="flex-1 m-0 overflow-auto data-[state=inactive]:hidden">
-          <BacktestResults />
+          <BacktestResults onReadyToRunBacktest={onRegisterRunBacktest} />
         </TabsContent>
       </Tabs>
     </div>
