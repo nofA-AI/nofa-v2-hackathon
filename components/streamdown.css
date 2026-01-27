@@ -1,0 +1,22 @@
+/* Streamdown component styles */
+
+[data-streamdown="unordered-list"],
+[data-streamdown="ordered-list"] {
+  padding-left: 1.5rem;
+}
+
+[data-streamdown="list-item"] {
+  margin-bottom: 0.25rem;
+}
+
+[data-streamdown="code-block"] {
+  background-color: #f7f7f7 !important;
+}
+
+[data-streamdown="code-block-body"] {
+  max-height: 200px;
+
+  span {
+    white-space: break-spaces;
+  }
+}
