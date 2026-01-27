@@ -9,135 +9,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useStrategyStore } from '@/lib/store/strategy-store';
-import { StrategyTree, ChatMessage } from '@/lib/types/strategy';
-import dayjs from 'dayjs';
+import { StrategyTree } from '@/lib/types/strategy';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useChat } from '@ai-sdk/react';
+import type { UIMessage } from 'ai';
+import { toast } from 'sonner';
+import { modelID, models } from '@/lib/models';
 
 interface AIChatPanelProps {
   onApplyStrategy?: (strategy: StrategyTree) => void;
 }
-
-// Mock AI response with strategy generation
-const mockGenerateStrategy = async (userMessage: string): Promise<{ content: string; strategyJson?: StrategyTree }> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-
-  // Check if the message contains strategy-related keywords
-  const isStrategyRequest =
-    userMessage.toLowerCase().includes('strategy') ||
-    userMessage.toLowerCase().includes('rsi') ||
-    userMessage.toLowerCase().includes('ema') ||
-    userMessage.toLowerCase().includes('moving average') ||
-    userMessage.toLowerCase().includes('btc') ||
-    userMessage.toLowerCase().includes('eth') ||
-    userMessage.toLowerCase().includes('long') ||
-    userMessage.toLowerCase().includes('short');
-
-  if (isStrategyRequest) {
-    const mockStrategy: StrategyTree = {
-      type: 'STRATEGY_TREE',
-      name: 'RSI Overbought/Oversold Strategy',
-      description: 'A momentum-based strategy using RSI indicators',
-      riskManagement: {
-        type: 'RISK_MANAGEMENT',
-        name: 'Global Risk (per position)',
-        scope: 'Per Position',
-        stopLoss: { mode: 'PCT', value: 0.03 },
-        takeProfit: { mode: 'PCT', value: 0.06 },
-      },
-      mainDecision: {
-        type: 'IF_ELSE_BLOCK',
-        name: 'RSI Decision',
-        conditionType: 'Compare',
-        conditions: [
-          {
-            type: 'CONDITION_ITEM',
-            indicator: 'RSI',
-            period: 14,
-            symbol: 'BTC/USDT',
-            operator: 'Greater Than',
-            value: 70,
-          },
-        ],
-        thenAction: [
-          {
-            type: 'ACTION_BLOCK',
-            name: 'Short BTC 30%',
-            symbol: 'BTC/USDT',
-            direction: 'SHORT',
-            allocate: {
-              type: 'ALLOCATE_CONFIG',
-              mode: 'WEIGHT',
-              value: 30,
-            },
-            leverage: 2,
-          },
-        ],
-        elseAction: [
-          {
-            type: 'IF_ELSE_BLOCK',
-            name: 'RSI Oversold Check',
-            conditionType: 'Compare',
-            conditions: [
-              {
-                type: 'CONDITION_ITEM',
-                indicator: 'RSI',
-                period: 14,
-                symbol: 'BTC/USDT',
-                operator: 'Less Than',
-                value: 30,
-              },
-            ],
-            thenAction: [
-              {
-                type: 'ACTION_BLOCK',
-                name: 'Long BTC 30%',
-                symbol: 'BTC/USDT',
-                direction: 'LONG',
-                allocate: {
-                  type: 'ALLOCATE_CONFIG',
-                  mode: 'WEIGHT',
-                  value: 30,
-                },
-                leverage: 2,
-              },
-            ],
-            elseAction: 'NO ACTION',
-          },
-        ],
-      },
-    };
-
-    return {
-      content: `I've created a RSI-based trading strategy for you. Here's what it does:
-
-**Strategy Logic:**
-- When RSI(14) > 70 (overbought): Short BTC with 30% weight at 2x leverage
-- When RSI(14) < 30 (oversold): Long BTC with 30% weight at 2x leverage
-- Otherwise: No action (stay flat)
-
-**Risk Management:**
-- Stop Loss: 3%
-- Take Profit: 6%
-- Scope: Per Position
-
-You can click "Apply Strategy" below to add this to your strategy tree, or describe any modifications you'd like to make.`,
-      strategyJson: mockStrategy,
-    };
-  }
-
-  return {
-    content: `I understand you're interested in trading strategies. To help you create a strategy, please describe:
-
-1. **Entry conditions** - What indicators or signals should trigger a trade? (e.g., "RSI above 70", "EMA crossover")
-2. **Exit conditions** - When should the position be closed?
-3. **Risk management** - What stop-loss and take-profit levels do you prefer?
-4. **Assets** - Which trading pairs are you interested in? (e.g., BTC/USDT, ETH/USDT)
-
-Feel free to describe your strategy in natural language and I'll help you build it!`,
-  };
-};
 
 const quickStartPrompts = [
   {
@@ -162,16 +44,23 @@ const quickStartPrompts = [
 
 export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [width, setWidth] = useState(360);
   const [isResizing, setIsResizing] = useState(false);
+  const [selectedModelId, setSelectedModelId] = useState<modelID>('gpt-5.2');
+  const [isReasoningEnabled, setIsReasoningEnabled] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { currentStrategyId, chatMessages, addChatMessage, updateStrategyTree } =
-    useStrategyStore();
+  const { currentStrategyId, updateStrategyTree } = useStrategyStore();
 
-  const messages = currentStrategyId ? chatMessages[currentStrategyId] || [] : [];
+  const { messages, sendMessage, status, stop } = useChat({
+    id: currentStrategyId || 'default',
+    onError: () => {
+      toast.error('An error occurred, please try again!');
+    },
+  });
+
+  const isGeneratingResponse = ['streaming', 'submitted'].includes(status);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -229,40 +118,27 @@ export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
 
   const handleSend = async (messageText?: string) => {
     const text = messageText || input.trim();
-    if (!text || !currentStrategyId || isLoading) return;
+    if (!text || !currentStrategyId || isGeneratingResponse) return;
 
-    // Add user message
-    addChatMessage(currentStrategyId, {
-      role: 'user',
-      content: text,
-    });
+    sendMessage(
+      {
+        text,
+      },
+      {
+        body: {
+          selectedModelId,
+          isReasoningEnabled,
+        },
+      }
+    );
 
     setInput('');
-    setIsLoading(true);
-
-    try {
-      // Get AI response
-      const response = await mockGenerateStrategy(text);
-
-      // Add assistant message
-      addChatMessage(currentStrategyId, {
-        role: 'assistant',
-        content: response.content,
-        strategyJson: response.strategyJson,
-      });
-    } catch (error) {
-      addChatMessage(currentStrategyId, {
-        role: 'assistant',
-        content: 'Sorry, I encountered an error processing your request. Please try again.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleApplyStrategy = (strategy: StrategyTree) => {
     updateStrategyTree(strategy);
     onApplyStrategy?.(strategy);
+    toast.success('Strategy applied successfully!');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -307,6 +183,18 @@ export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
           <Sparkle className="w-4 h-4 text-primary" weight="fill" />
           AI Assistant
         </h2>
+        {/* Model Selector */}
+        <select
+          className="text-xs px-2 py-1 rounded border border-border bg-background"
+          value={selectedModelId}
+          onChange={(e) => setSelectedModelId(e.target.value as modelID)}
+        >
+          {Object.entries(models).map(([id, name]) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Messages */}
@@ -355,7 +243,7 @@ export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
             ))
           )}
 
-          {isLoading && (
+          {isGeneratingResponse && (
             <div className="flex items-start gap-2">
               <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                 <Sparkle className="w-3 h-3 text-primary-foreground" weight="fill" />
@@ -384,13 +272,13 @@ export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
             onKeyDown={handleKeyDown}
             placeholder="Describe your strategy..."
             className="min-h-[80px] pr-12 resize-none"
-            disabled={isLoading}
+            disabled={isGeneratingResponse}
           />
           <Button
             size="icon"
             className="absolute bottom-2 right-2 h-8 w-8"
-            onClick={() => handleSend()}
-            disabled={!input.trim() || isLoading}
+            onClick={() => isGeneratingResponse ? stop() : handleSend()}
+            disabled={!input.trim() && !isGeneratingResponse}
           >
             <PaperPlaneTilt className="w-4 h-4" weight="bold" />
           </Button>
@@ -401,12 +289,54 @@ export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
 }
 
 interface ChatMessageBubbleProps {
-  message: ChatMessage;
+  message: UIMessage;
   onApplyStrategy: (strategy: StrategyTree) => void;
 }
 
 function ChatMessageBubble({ message, onApplyStrategy }: ChatMessageBubbleProps) {
   const isUser = message.role === 'user';
+  const [extractedStrategy, setExtractedStrategy] = useState<StrategyTree | null>(null);
+
+  // Extract strategy from tool calls
+  useEffect(() => {
+    if (!isUser && message.parts) {
+      for (const part of message.parts) {
+        if (part.type === 'tool-result') {
+          try {
+            const toolResult = part as any;
+            const result = typeof toolResult.result === 'string'
+              ? JSON.parse(toolResult.result)
+              : toolResult.result;
+
+            if (result.success && result.strategyTree) {
+              setExtractedStrategy(result.strategyTree);
+            } else if (result.success && result.updatedTree) {
+              setExtractedStrategy(result.updatedTree);
+            }
+          } catch (e) {
+            // Ignore parsing errors
+          }
+        }
+      }
+    }
+  }, [message.parts, isUser]);
+
+  // Get text content from message parts
+  const getTextContent = () => {
+    let textContent = '';
+
+    if (message.parts) {
+      for (const part of message.parts) {
+        if (part.type === 'text') {
+          textContent += (part as any).text;
+        }
+      }
+    }
+
+    return textContent;
+  };
+
+  const textContent = getTextContent();
 
   return (
     <div className={cn('flex items-start gap-2', isUser && 'flex-row-reverse')}>
@@ -422,18 +352,20 @@ function ChatMessageBubble({ message, onApplyStrategy }: ChatMessageBubbleProps)
           isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'
         )}
       >
-        <div className={cn(
-          'text-sm break-words prose prose-sm max-w-none',
-          isUser ? 'prose-invert' : 'prose-slate',
-          '[&>*]:my-2 [&>ul]:my-2 [&>ol]:my-2 [&>li]:my-1 [&>p]:leading-normal',
-          '[&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5'
-        )}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {message.content}
-          </ReactMarkdown>
-        </div>
+        {textContent && (
+          <div className={cn(
+            'text-sm break-words prose prose-sm max-w-none',
+            isUser ? 'prose-invert' : 'prose-slate',
+            '[&>*]:my-2 [&>ul]:my-2 [&>ol]:my-2 [&>li]:my-1 [&>p]:leading-normal',
+            '[&>ul]:list-disc [&>ul]:pl-5 [&>ol]:list-decimal [&>ol]:pl-5'
+          )}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {textContent}
+            </ReactMarkdown>
+          </div>
+        )}
 
-        {message.strategyJson && (
+        {extractedStrategy && (
           <div className="mt-3 p-3 rounded-md bg-card border border-border">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-foreground">
@@ -441,27 +373,18 @@ function ChatMessageBubble({ message, onApplyStrategy }: ChatMessageBubbleProps)
               </span>
             </div>
             <p className="text-xs text-muted-foreground mb-3">
-              {message.strategyJson.name}
+              {extractedStrategy.name}
             </p>
             <Button
               size="sm"
               className="w-full gap-2"
-              onClick={() => onApplyStrategy(message.strategyJson!)}
+              onClick={() => onApplyStrategy(extractedStrategy)}
             >
               <ChartLine className="w-4 h-4" />
               Apply Strategy
             </Button>
           </div>
         )}
-
-        <p
-          className={cn(
-            'text-xs mt-2',
-            isUser ? 'text-primary-foreground/70' : 'text-muted-foreground'
-          )}
-        >
-          {dayjs(message.timestamp).format('HH:mm')}
-        </p>
       </div>
     </div>
   );
