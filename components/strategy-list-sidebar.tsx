@@ -83,7 +83,7 @@ export function StrategyListSidebar() {
   return (
     <>
       <div className="w-64 border-r border-border bg-card flex flex-col">
-        <div className="flex items-center justify-between p-3 border-b border-border">
+        <div className="flex items-center justify-between p-3 border-b border-border h-[49px]">
           <h2 className="font-medium text-sm">Strategies</h2>
           <div className="flex items-center gap-1">
             <Button

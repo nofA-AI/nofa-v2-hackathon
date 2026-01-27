@@ -163,7 +163,7 @@ const quickStartPrompts = [
 export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [width, setWidth] = useState(320); // 默认宽度 320px (w-80)
+  const [width, setWidth] = useState(360);
   const [isResizing, setIsResizing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -177,9 +177,26 @@ export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // 从 localStorage 读取保存的宽度
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedWidth = localStorage.getItem('aiChatPanelWidth');
+      if (savedWidth) {
+        setWidth(parseInt(savedWidth, 10));
+      }
+    }
+  }, []);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // 保存宽度到 localStorage（仅在不处于拖动状态时保存）
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !isResizing) {
+      localStorage.setItem('aiChatPanelWidth', width.toString());
+    }
+  }, [width, isResizing]);
 
   // Handle resize
   useEffect(() => {
@@ -262,7 +279,7 @@ export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
           className="absolute left-0 top-0 bottom-0 w-1 hover:bg-primary/50 cursor-ew-resize transition-colors"
           onMouseDown={() => setIsResizing(true)}
         />
-        <div className="flex items-center justify-between p-3 border-b border-border">
+        <div className="flex items-center justify-between p-3 border-b border-border h-[49px]">
           <h2 className="font-medium text-sm flex items-center gap-2">
             <Sparkle className="w-4 h-4 text-primary" weight="fill" />
             AI Assistant
@@ -285,7 +302,7 @@ export function AIChatPanel({ onApplyStrategy }: AIChatPanelProps) {
         onMouseDown={() => setIsResizing(true)}
       />
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-border flex-shrink-0">
+      <div className="flex items-center justify-between p-3 border-b border-border flex-shrink-0 h-[49px]">
         <h2 className="font-medium text-sm flex items-center gap-2">
           <Sparkle className="w-4 h-4 text-primary" weight="fill" />
           AI Assistant
