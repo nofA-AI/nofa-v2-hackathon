@@ -1,7 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { CaretDown, CaretRight, PencilSimple, Trash, GitBranch } from '@phosphor-icons/react';
+import {
+  CaretDown,
+  CaretRight,
+  PencilSimple,
+  Trash,
+  GitBranch,
+} from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -194,7 +200,7 @@ export function IfElseBlockNode({
   const updateCondition = (
     index: number,
     field: keyof ConditionItem,
-    value: unknown
+    value: unknown,
   ) => {
     const newConditions = [...editValues.conditions];
     newConditions[index] = { ...newConditions[index], [field]: value };
@@ -204,19 +210,9 @@ export function IfElseBlockNode({
   return (
     <>
       <div className="mt-2">
-        {/* IF Condition Badge */}
-        <div className="flex items-center gap-2 mb-1">
-          <span className="px-2 py-0.5 text-xs font-semibold rounded bg-primary text-primary-foreground">
-            IF
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {block.conditions.map(formatCondition).join(` ${block.logicalOperator || 'AND'} `)}
-          </span>
-        </div>
-
         {/* Main Block */}
         <div
-          className="group flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer border border-border bg-card"
+          className="group flex gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer border border-border bg-card"
           onClick={onToggle}
         >
           <button
@@ -234,13 +230,34 @@ export function IfElseBlockNode({
             )}
           </button>
 
-          <div className="w-5 h-5 rounded bg-muted flex items-center justify-center">
+          {/* <div className="w-5 h-5 rounded bg-muted flex items-center justify-center">
             <GitBranch className="w-3 h-3 text-muted-foreground" weight="bold" />
+          </div> */}
+
+          <div className="flex-1 flex gap-2 min-w-0">
+            <div className="h-6 w-6 flex items-center justify-center text-xs font-semibold rounded bg-primary text-primary-foreground">
+              IF
+            </div>
+            <div>
+              { block.name && <div className="text-sm font-medium truncate mb-1">{block.name}</div> }
+              <div className="min-h-[24px] flex items-center flex-wrap gap-1">
+                {block.conditions.map((condition, idx) => (
+                  <div key={idx} className="flex items-center gap-1">
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                      {formatCondition(condition)}
+                    </span>
+                    {idx < block.conditions.length - 1 && (
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {block.logicalOperator || 'AND'}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <span className="text-sm font-medium flex-1 truncate">{block.name}</span>
-
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
             <Button
               variant="ghost"
               size="icon"
@@ -286,17 +303,23 @@ export function IfElseBlockNode({
                         nodeId={`${nodeId}-then-action-${index}`}
                         action={action}
                         onUpdate={(updated) => {
-                          const newActions = [...(block.thenAction as (ActionBlock | IfElseBlock)[])];
+                          const newActions = [
+                            ...(block.thenAction as (
+                              | ActionBlock
+                              | IfElseBlock
+                            )[]),
+                          ];
                           newActions[index] = updated;
                           onUpdate({ ...block, thenAction: newActions });
                         }}
                         onDelete={() => {
-                          const newActions = (block.thenAction as (ActionBlock | IfElseBlock)[]).filter(
-                            (_, i) => i !== index
-                          );
+                          const newActions = (
+                            block.thenAction as (ActionBlock | IfElseBlock)[]
+                          ).filter((_, i) => i !== index);
                           onUpdate({
                             ...block,
-                            thenAction: newActions.length > 0 ? newActions : 'NO ACTION',
+                            thenAction:
+                              newActions.length > 0 ? newActions : 'NO ACTION',
                           });
                         }}
                       />
@@ -306,26 +329,36 @@ export function IfElseBlockNode({
                         nodeId={`${nodeId}-then-ifelse-${index}`}
                         block={action}
                         onUpdate={(updated) => {
-                          const newActions = [...(block.thenAction as (ActionBlock | IfElseBlock)[])];
+                          const newActions = [
+                            ...(block.thenAction as (
+                              | ActionBlock
+                              | IfElseBlock
+                            )[]),
+                          ];
                           newActions[index] = updated;
                           onUpdate({ ...block, thenAction: newActions });
                         }}
                         onDelete={() => {
-                          const newActions = (block.thenAction as (ActionBlock | IfElseBlock)[]).filter(
-                            (_, i) => i !== index
-                          );
+                          const newActions = (
+                            block.thenAction as (ActionBlock | IfElseBlock)[]
+                          ).filter((_, i) => i !== index);
                           onUpdate({
                             ...block,
-                            thenAction: newActions.length > 0 ? newActions : 'NO ACTION',
+                            thenAction:
+                              newActions.length > 0 ? newActions : 'NO ACTION',
                           });
                         }}
-                        expanded={expandedNodes.has(`${nodeId}-then-ifelse-${index}`)}
-                        onToggle={() => onToggleChild(`${nodeId}-then-ifelse-${index}`)}
+                        expanded={expandedNodes.has(
+                          `${nodeId}-then-ifelse-${index}`,
+                        )}
+                        onToggle={() =>
+                          onToggleChild(`${nodeId}-then-ifelse-${index}`)
+                        }
                         expandedNodes={expandedNodes}
                         onToggleChild={onToggleChild}
                         depth={depth + 1}
                       />
-                    )
+                    ),
                   )
                 )}
                 <div className="mt-2">
@@ -355,17 +388,23 @@ export function IfElseBlockNode({
                         nodeId={`${nodeId}-else-action-${index}`}
                         action={action}
                         onUpdate={(updated) => {
-                          const newActions = [...(block.elseAction as (ActionBlock | IfElseBlock)[])];
+                          const newActions = [
+                            ...(block.elseAction as (
+                              | ActionBlock
+                              | IfElseBlock
+                            )[]),
+                          ];
                           newActions[index] = updated;
                           onUpdate({ ...block, elseAction: newActions });
                         }}
                         onDelete={() => {
-                          const newActions = (block.elseAction as (ActionBlock | IfElseBlock)[]).filter(
-                            (_, i) => i !== index
-                          );
+                          const newActions = (
+                            block.elseAction as (ActionBlock | IfElseBlock)[]
+                          ).filter((_, i) => i !== index);
                           onUpdate({
                             ...block,
-                            elseAction: newActions.length > 0 ? newActions : 'NO ACTION',
+                            elseAction:
+                              newActions.length > 0 ? newActions : 'NO ACTION',
                           });
                         }}
                       />
@@ -375,26 +414,36 @@ export function IfElseBlockNode({
                         nodeId={`${nodeId}-else-ifelse-${index}`}
                         block={action}
                         onUpdate={(updated) => {
-                          const newActions = [...(block.elseAction as (ActionBlock | IfElseBlock)[])];
+                          const newActions = [
+                            ...(block.elseAction as (
+                              | ActionBlock
+                              | IfElseBlock
+                            )[]),
+                          ];
                           newActions[index] = updated;
                           onUpdate({ ...block, elseAction: newActions });
                         }}
                         onDelete={() => {
-                          const newActions = (block.elseAction as (ActionBlock | IfElseBlock)[]).filter(
-                            (_, i) => i !== index
-                          );
+                          const newActions = (
+                            block.elseAction as (ActionBlock | IfElseBlock)[]
+                          ).filter((_, i) => i !== index);
                           onUpdate({
                             ...block,
-                            elseAction: newActions.length > 0 ? newActions : 'NO ACTION',
+                            elseAction:
+                              newActions.length > 0 ? newActions : 'NO ACTION',
                           });
                         }}
-                        expanded={expandedNodes.has(`${nodeId}-else-ifelse-${index}`)}
-                        onToggle={() => onToggleChild(`${nodeId}-else-ifelse-${index}`)}
+                        expanded={expandedNodes.has(
+                          `${nodeId}-else-ifelse-${index}`,
+                        )}
+                        onToggle={() =>
+                          onToggleChild(`${nodeId}-else-ifelse-${index}`)
+                        }
                         expandedNodes={expandedNodes}
                         onToggleChild={onToggleChild}
                         depth={depth + 1}
                       />
-                    )
+                    ),
                   )
                 )}
                 <div className="mt-2">
@@ -450,7 +499,9 @@ export function IfElseBlockNode({
                 <Label>Conditions</Label>
                 {editValues.conditions.length > 1 && (
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground">Logic:</Label>
+                    <Label className="text-xs text-muted-foreground">
+                      Logic:
+                    </Label>
                     <Select
                       value={editValues.logicalOperator || 'AND'}
                       onValueChange={(v: LogicalOperator) =>
@@ -470,9 +521,7 @@ export function IfElseBlockNode({
               </div>
               {editValues.conditions.map((condition, index) => (
                 <div key={index}>
-                  <div
-                    className="p-3 bg-muted rounded-md space-y-2 relative"
-                  >
+                  <div className="p-3 bg-muted rounded-md space-y-2 relative">
                     <Button
                       type="button"
                       variant="ghost"
@@ -480,7 +529,7 @@ export function IfElseBlockNode({
                       className="absolute top-0 right-0 h-8 w-8 text-destructive"
                       onClick={() => {
                         const newConditions = editValues.conditions.filter(
-                          (_, i) => i !== index
+                          (_, i) => i !== index,
                         );
                         setEditValues({
                           ...editValues,
@@ -518,7 +567,11 @@ export function IfElseBlockNode({
                           className="h-8"
                           value={condition.period}
                           onChange={(e) =>
-                            updateCondition(index, 'period', Number(e.target.value))
+                            updateCondition(
+                              index,
+                              'period',
+                              Number(e.target.value),
+                            )
                           }
                         />
                       </div>
@@ -571,7 +624,11 @@ export function IfElseBlockNode({
                               : 0
                           }
                           onChange={(e) =>
-                            updateCondition(index, 'value', Number(e.target.value))
+                            updateCondition(
+                              index,
+                              'value',
+                              Number(e.target.value),
+                            )
                           }
                         />
                       </div>
