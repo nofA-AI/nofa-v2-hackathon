@@ -4,6 +4,7 @@ import React from "react"
 
 import { useState } from 'react';
 import { CaretDown, CaretRight, Plus, Sparkle, ClipboardText } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
@@ -148,6 +149,9 @@ export function StrategyTreeEditor({ onCreateWithAI }: StrategyTreeEditorProps) 
       setPasteDialogOpen(false);
       setJsonInput('');
       setJsonError('');
+
+      // Show success toast
+      toast.success('Strategy tree applied successfully!');
     } catch (error) {
       setJsonError('Invalid JSON format. Please check your input.');
     }
