@@ -118,7 +118,7 @@ export function StrategyListSidebar() {
             </div>
           ) : (
             <div className="p-2">
-              {strategies.map((strategy) => (
+              {[...strategies].reverse().map((strategy) => (
                 <div
                   key={strategy.id}
                   className={cn(
