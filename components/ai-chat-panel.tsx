@@ -9,18 +9,22 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useStrategyStore } from '@/lib/store/strategy-store';
-import { StrategyTree } from '@/lib/types/strategy';
+import { StrategyTree, BacktestParams } from '@/lib/types/strategy';
 import { Streamdown } from "streamdown";
 import { useChat } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
 import { toast } from 'sonner';
 import { modelID, models } from '@/lib/models';
+import { BacktestDialog } from '@/components/backtest-dialog';
+import { mockRunBacktest } from '@/lib/backtest';
+import dayjs from 'dayjs';
 import './streamdown.css';
 import { code } from "./code";
 
 interface AIChatPanelProps {
   onApplyStrategy?: (strategy: StrategyTree) => void;
   onRunBacktest?: () => void;
+  onSwitchToBacktest?: () => void;
 }
 
 const quickStartPrompts = [
@@ -57,17 +61,25 @@ const loadStoredMessages = (storageKey: string): UIMessage[] => {
   }
 };
 
-export function AIChatPanel({ onApplyStrategy, onRunBacktest }: AIChatPanelProps) {
+export function AIChatPanel({ onApplyStrategy, onRunBacktest, onSwitchToBacktest }: AIChatPanelProps) {
   const [input, setInput] = useState('');
   const [width, setWidth] = useState(360);
   const [isResizing, setIsResizing] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<modelID>('gpt-5.2');
   const [isReasoningEnabled, setIsReasoningEnabled] = useState<boolean>(false);
+  const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
+  const [isRunningBacktest, setIsRunningBacktest] = useState(false);
+  const [backtestParams, setBacktestParams] = useState<BacktestParams>({
+    startDate: dayjs().subtract(90, 'day').format('YYYY-MM-DD'),
+    endDate: dayjs().format('YYYY-MM-DD'),
+    initialCapital: 10000,
+    tradingFee: 0.001,
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const { currentStrategyId, updateStrategyTree } = useStrategyStore();
+  const { currentStrategyId, updateStrategyTree, addBacktestResult } = useStrategyStore();
 
   const storageKey = getStorageKey(currentStrategyId);
 
@@ -212,6 +224,26 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest }: AIChatPanelProps
     toast.success('Strategy applied successfully!');
   };
 
+  const handleRunBacktest = async () => {
+    if (!currentStrategyId) return;
+
+    setIsRunningBacktest(true);
+
+    try {
+      const result = await mockRunBacktest(currentStrategyId, backtestParams);
+      addBacktestResult(currentStrategyId, result);
+      toast.success('Backtest completed successfully!');
+      setBacktestDialogOpen(false);
+      // Switch to backtest tab after successful backtest
+      onSwitchToBacktest?.();
+    } catch (error) {
+      console.error('Backtest failed:', error);
+      toast.error('Backtest failed. Please try again.');
+    } finally {
+      setIsRunningBacktest(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -310,7 +342,7 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest }: AIChatPanelProps
                 key={message.id}
                 message={message}
                 onApplyStrategy={handleApplyStrategy}
-                onRunBacktest={onRunBacktest}
+                onOpenBacktestDialog={() => setBacktestDialogOpen(true)}
                 isGeneratingResponse={isGeneratingResponse}
               />
             ))
@@ -357,6 +389,16 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest }: AIChatPanelProps
           </Button>
         </div>
       </div>
+
+      {/* Backtest Dialog */}
+      <BacktestDialog
+        open={backtestDialogOpen}
+        onOpenChange={setBacktestDialogOpen}
+        params={backtestParams}
+        onParamsChange={setBacktestParams}
+        onRun={handleRunBacktest}
+        isRunning={isRunningBacktest}
+      />
     </div>
   );
 }
@@ -364,11 +406,11 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest }: AIChatPanelProps
 interface ChatMessageBubbleProps {
   message: UIMessage;
   onApplyStrategy: (strategy: StrategyTree) => void;
-  onRunBacktest?: () => void;
+  onOpenBacktestDialog?: () => void;
   isGeneratingResponse?: boolean;
 }
 
-function ChatMessageBubble({ message, onApplyStrategy, onRunBacktest, isGeneratingResponse }: ChatMessageBubbleProps) {
+function ChatMessageBubble({ message, onApplyStrategy, onOpenBacktestDialog, isGeneratingResponse }: ChatMessageBubbleProps) {
   const isUser = message.role === 'user';
   const [extractedStrategy, setExtractedStrategy] = useState<StrategyTree | null>(null);
   const [hasApplied, setHasApplied] = useState(false);
@@ -490,7 +532,7 @@ function ChatMessageBubble({ message, onApplyStrategy, onRunBacktest, isGenerati
                 size="sm"
                 variant="outline"
                 className="w-full gap-2 mt-2"
-                onClick={() => onRunBacktest?.()}
+                onClick={() => onOpenBacktestDialog?.()}
               >
                 <Play className="w-4 h-4" />
                 Run Backtest

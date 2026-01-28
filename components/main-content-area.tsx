@@ -97,7 +97,7 @@ export function MainContentArea({ onCreateWithAI, onSwitchToEditor, onSwitchToBa
         </div>
 
         <TabsContent value="editor" className="flex-1 m-0 overflow-auto data-[state=inactive]:hidden">
-          <StrategyTreeEditor onCreateWithAI={onCreateWithAI} />
+          <StrategyTreeEditor onCreateWithAI={onCreateWithAI} onSwitchToBacktest={switchToBacktest} />
         </TabsContent>
 
         <TabsContent value="backtest" className="flex-1 m-0 overflow-auto data-[state=inactive]:hidden">

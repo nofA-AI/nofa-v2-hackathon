@@ -2,8 +2,8 @@
 
 import React from "react"
 
-import { useState } from 'react';
-import { CaretDown, CaretRight, Plus, Sparkle, ClipboardText } from '@phosphor-icons/react';
+import { useState, useCallback } from 'react';
+import { CaretDown, CaretRight, Plus, Sparkle, ClipboardText, Play, ArrowsClockwise } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -34,26 +34,70 @@ import {
   DEFAULT_RISK_MANAGEMENT,
   AVAILABLE_SYMBOLS,
   AVAILABLE_INDICATORS,
+  BacktestParams,
+  BacktestResult,
 } from '@/lib/types/strategy';
 import { RiskManagementNode } from './nodes/risk-management-node';
 import { IfElseBlockNode } from './nodes/if-else-block-node';
 import { ActionBlockNode } from './nodes/action-block-node';
 import { AddBlockDropdown } from './add-block-dropdown';
+import { BacktestDialog } from '@/components/backtest-dialog';
+import { mockRunBacktest } from '@/lib/backtest';
+import dayjs from 'dayjs';
 
 interface StrategyTreeEditorProps {
   onCreateWithAI?: () => void;
+  onSwitchToBacktest?: () => void;
 }
 
-export function StrategyTreeEditor({ onCreateWithAI }: StrategyTreeEditorProps) {
-  const { history, currentStrategyId, updateStrategyTree } = useStrategyStore();
+export function StrategyTreeEditor({ onCreateWithAI, onSwitchToBacktest }: StrategyTreeEditorProps) {
+  const { history, currentStrategyId, updateStrategyTree, addBacktestResult } = useStrategyStore();
   const strategyTree = history.present;
 
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
     new Set(['root', 'risk', 'main'])
   );
   const [pasteDialogOpen, setPasteDialogOpen] = useState(false);
+  const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
+  const [isRunningBacktest, setIsRunningBacktest] = useState(false);
   const [jsonInput, setJsonInput] = useState('');
   const [jsonError, setJsonError] = useState('');
+  const [backtestParams, setBacktestParams] = useState<BacktestParams>({
+    startDate: dayjs().subtract(90, 'day').format('YYYY-MM-DD'),
+    endDate: dayjs().format('YYYY-MM-DD'),
+    initialCapital: 10000,
+    tradingFee: 0.001,
+  });
+
+  // Check if strategy is valid for backtesting
+  const mainDecision = Array.isArray(strategyTree.mainDecision)
+    ? strategyTree.mainDecision[0]
+    : strategyTree.mainDecision;
+
+  const isStrategyValid =
+    mainDecision &&
+    mainDecision.conditions.length > 0 &&
+    (mainDecision.thenAction !== 'NO ACTION' || mainDecision.elseAction !== 'NO ACTION');
+
+  const handleRunBacktest = useCallback(async () => {
+    if (!currentStrategyId || !isStrategyValid) return;
+
+    setIsRunningBacktest(true);
+
+    try {
+      const result = await mockRunBacktest(currentStrategyId, backtestParams);
+      addBacktestResult(currentStrategyId, result);
+      setBacktestDialogOpen(false);
+      toast.success('Backtest completed successfully!');
+      // Switch to backtest tab after successful backtest
+      onSwitchToBacktest?.();
+    } catch (error) {
+      console.error('Backtest failed:', error);
+      toast.error('Backtest failed. Please try again.');
+    } finally {
+      setIsRunningBacktest(false);
+    }
+  }, [currentStrategyId, isStrategyValid, backtestParams, addBacktestResult, onSwitchToBacktest]);
 
   const toggleExpand = (nodeId: string) => {
     setExpandedNodes((prev) => {
@@ -182,7 +226,7 @@ export function StrategyTreeEditor({ onCreateWithAI }: StrategyTreeEditorProps) 
           onClick={() => setPasteDialogOpen(true)}
         >
           <ClipboardText className="w-4 h-4" />
-          Paste JSON
+          Import
         </Button>
       </div>
 
@@ -213,6 +257,32 @@ export function StrategyTreeEditor({ onCreateWithAI }: StrategyTreeEditorProps) 
               expanded={expandedNodes.has('root')}
               onToggle={() => toggleExpand('root')}
               depth={0}
+              actions={
+                isStrategyValid ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBacktestDialogOpen(true);
+                    }}
+                    disabled={isRunningBacktest}
+                  >
+                    {isRunningBacktest ? (
+                      <>
+                        <ArrowsClockwise className="w-3 h-3 mr-1 animate-spin" />
+                        Running...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="!w-3 !h-3 mr-1" weight="fill" />
+                        Backtest
+                      </>
+                    )}
+                  </Button>
+                ) : null
+              }
             >
               {/* Risk Management */}
               <RiskManagementNode
@@ -302,7 +372,7 @@ export function StrategyTreeEditor({ onCreateWithAI }: StrategyTreeEditorProps) 
       <Dialog open={pasteDialogOpen} onOpenChange={setPasteDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Paste Strategy Tree JSON</DialogTitle>
+            <DialogTitle>Import Strategy Tree JSON</DialogTitle>
             <DialogDescription>
               Paste your strategy tree JSON below. The format will be validated before applying.
             </DialogDescription>
@@ -358,6 +428,16 @@ export function StrategyTreeEditor({ onCreateWithAI }: StrategyTreeEditorProps) 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Backtest Dialog */}
+      <BacktestDialog
+        open={backtestDialogOpen}
+        onOpenChange={setBacktestDialogOpen}
+        params={backtestParams}
+        onParamsChange={setBacktestParams}
+        onRun={handleRunBacktest}
+        isRunning={isRunningBacktest}
+      />
     </div>
   );
 }
@@ -425,9 +505,9 @@ export function TreeNode({
         {/* Badge */}
         {badge}
 
-        {/* Actions (visible on hover) */}
+        {/* Actions (always visible) */}
         {actions && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1">
             {actions}
           </div>
         )}

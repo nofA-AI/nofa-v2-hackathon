@@ -56,6 +56,10 @@ export default function HomePage() {
     runBacktestRef.current?.();
   };
 
+  const switchToBacktest = () => {
+    switchToBacktestRef.current?.();
+  };
+
   return (
     <div className="h-screen flex flex-col relative overflow-hidden">
       <Header />
@@ -67,7 +71,11 @@ export default function HomePage() {
           onSwitchToBacktest={handleSwitchToBacktest}
           onRegisterRunBacktest={handleRegisterRunBacktest}
         />
-        <AIChatPanel onApplyStrategy={handleApplyStrategy} onRunBacktest={handleRunBacktest} />
+        <AIChatPanel
+          onApplyStrategy={handleApplyStrategy}
+          onRunBacktest={handleRunBacktest}
+          onSwitchToBacktest={switchToBacktest}
+        />
       </div>
 
       <AnimatePresence>
