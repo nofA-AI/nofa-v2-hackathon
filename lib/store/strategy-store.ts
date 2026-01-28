@@ -2,12 +2,12 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { 
-  Strategy, 
-  StrategyTree, 
-  ChatMessage, 
+import {
+  Strategy,
+  StrategyTree,
+  ChatMessage,
   BacktestResult,
-  DEFAULT_STRATEGY_TREE 
+  DEFAULT_STRATEGY_TREE
 } from '@/lib/types/strategy';
 
 interface HistoryState {
@@ -20,33 +20,35 @@ interface StrategyStore {
   // Strategy list
   strategies: Strategy[];
   currentStrategyId: string | null;
-  
+  hasHydrated: boolean;
+
   // History for undo/redo
   history: HistoryState;
-  
+
   // Chat messages per strategy
   chatMessages: Record<string, ChatMessage[]>;
-  
+
   // Backtest results per strategy
   backtestResults: Record<string, BacktestResult[]>;
-  
+
   // Actions
   createStrategy: () => string;
   deleteStrategy: (id: string) => void;
   setCurrentStrategy: (id: string | null) => void;
   updateStrategyTree: (tree: StrategyTree) => void;
   updateStrategyName: (name: string) => void;
-  
+  setHasHydrated: (hydrated: boolean) => void;
+
   // Undo/Redo
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
-  
+
   // Chat
   addChatMessage: (strategyId: string, message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   clearChatMessages: (strategyId: string) => void;
-  
+
   // Backtest
   addBacktestResult: (strategyId: string, result: Omit<BacktestResult, 'id' | 'createdAt'>) => void;
 }
@@ -58,6 +60,7 @@ export const useStrategyStore = create<StrategyStore>()(
     (set, get) => ({
       strategies: [],
       currentStrategyId: null,
+      hasHydrated: false,
       history: {
         past: [],
         present: DEFAULT_STRATEGY_TREE,
@@ -75,7 +78,7 @@ export const useStrategyStore = create<StrategyStore>()(
           createdAt: now,
           updatedAt: now,
         };
-        
+
         set((state) => ({
           strategies: [...state.strategies, newStrategy],
           currentStrategyId: id,
@@ -89,7 +92,7 @@ export const useStrategyStore = create<StrategyStore>()(
             [id]: [],
           },
         }));
-        
+
         return id;
       },
 
@@ -100,11 +103,11 @@ export const useStrategyStore = create<StrategyStore>()(
           delete newChatMessages[id];
           const newBacktestResults = { ...state.backtestResults };
           delete newBacktestResults[id];
-          
+
           return {
             strategies: newStrategies,
-            currentStrategyId: state.currentStrategyId === id 
-              ? (newStrategies[0]?.id || null) 
+            currentStrategyId: state.currentStrategyId === id
+              ? (newStrategies[0]?.id || null)
               : state.currentStrategyId,
             chatMessages: newChatMessages,
             backtestResults: newBacktestResults,
@@ -164,6 +167,10 @@ export const useStrategyStore = create<StrategyStore>()(
         }));
       },
 
+      setHasHydrated: (hydrated) => {
+        set({ hasHydrated: hydrated });
+      },
+
       undo: () => {
         const { history, currentStrategyId } = get();
         if (history.past.length === 0) return;
@@ -215,7 +222,7 @@ export const useStrategyStore = create<StrategyStore>()(
           id: generateId(),
           timestamp: new Date().toISOString(),
         };
-        
+
         set((state) => ({
           chatMessages: {
             ...state.chatMessages,
@@ -239,7 +246,7 @@ export const useStrategyStore = create<StrategyStore>()(
           id: generateId(),
           createdAt: new Date().toISOString(),
         };
-        
+
         set((state) => ({
           backtestResults: {
             ...state.backtestResults,
@@ -250,6 +257,9 @@ export const useStrategyStore = create<StrategyStore>()(
     }),
     {
       name: 'strategy-storage',
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

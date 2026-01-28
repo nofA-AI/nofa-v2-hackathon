@@ -227,6 +227,29 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest, onSwitchToBacktest
     setInput('');
   };
 
+  useEffect(() => {
+    const handleGuideSubmit = (event: Event) => {
+      const detail = (event as CustomEvent<{ text?: string }>).detail;
+      const text = detail?.text?.trim();
+      if (!text || !currentStrategyId || isGeneratingResponse) return;
+
+      sendMessage(
+        { text },
+        {
+          body: {
+            selectedModelId,
+            isReasoningEnabled,
+          },
+        }
+      );
+    };
+
+    window.addEventListener('guide-chat-submit', handleGuideSubmit);
+    return () => {
+      window.removeEventListener('guide-chat-submit', handleGuideSubmit);
+    };
+  }, [currentStrategyId, isGeneratingResponse, isReasoningEnabled, selectedModelId, sendMessage]);
+
   const handleApplyStrategy = (strategy: StrategyTree) => {
     updateStrategyTree(strategy);
     onApplyStrategy?.(strategy);

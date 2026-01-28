@@ -1,87 +1,322 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Sparkles, TrendingUp, Target, Zap } from 'lucide-react';
+import { Zap, TrendingUp, Target, ChevronLeft, ChevronRight, Sparkles, ArrowUp, Bolt, Code, History, MessageCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
-interface GuideViewProps {
-  onGetStarted: () => void;
+interface NewsItem {
+  id: string;
+  title: string;
+  content: string;
+  time: string;
+  sentiment?: 'Positive' | 'Negative' | 'Normal';
+  source: string;
 }
 
-export function GuideView({ onGetStarted }: GuideViewProps) {
+interface RecommendedStrategy {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  performance: string;
+  icon: string;
+}
+
+interface GuideViewProps {
+  onNewsClick: (news: NewsItem) => void;
+  onStrategyClick: (strategy: RecommendedStrategy) => void;
+  onStartChat: () => void;
+}
+
+export function GuideView({ onNewsClick, onStrategyClick, onStartChat }: GuideViewProps) {
+  const [newsData, setNewsData] = useState<NewsItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [guideInput, setGuideInput] = useState('');
+
+  useEffect(() => {
+    fetchNews();
+  }, []);
+
+  const fetchNews = async () => {
+    try {
+      const response = await fetch('https://api.theblockbeats.news/v1/open-api/open-flash?size=20&page=1&type=push&lang=en');
+      const data = await response.json();
+
+      if (data.data?.data) {
+        const formattedNews: NewsItem[] = data.data.data.slice(0, 8).map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          content: item.content || item.description || '',
+          time: formatTime(item.create_time * 1000),
+          sentiment: getSentiment(item.title + ' ' + item.content),
+          source: 'BlockBeats',
+        }));
+        setNewsData(formattedNews);
+      }
+    } catch (error) {
+      console.error('Failed to fetch news:', error);
+      // Fallback to mock data
+      setNewsData(getMockNews());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTime = (timestamp: number) => {
+    const diff = Date.now() - timestamp;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    if (hours < 1) return 'Just now';
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
+
+  const getSentiment = (text: string): 'Positive' | 'Negative' | 'Normal' => {
+    const lowerText = text.toLowerCase();
+    const positiveWords = ['surge', 'rally', 'gain', 'up', 'bullish', 'breakthrough', 'positive', 'growth'];
+    const negativeWords = ['crash', 'down', 'drop', 'fall', 'bearish', 'negative', 'decline', 'volatility'];
+
+    const hasPositive = positiveWords.some(word => lowerText.includes(word));
+    const hasNegative = negativeWords.some(word => lowerText.includes(word));
+
+    if (hasPositive && !hasNegative) return 'Positive';
+    if (hasNegative && !hasPositive) return 'Negative';
+    return 'Normal';
+  };
+
+  const getMockNews = (): NewsItem[] => [
+    {
+      id: '1',
+      title: 'Bitcoin surges past $100K milestone',
+      content: 'Major cryptocurrency reaches historic high as institutional adoption accelerates.',
+      time: '2h ago',
+      sentiment: 'Positive',
+      source: 'CryptoNews',
+    },
+    {
+      id: '2',
+      title: 'Ethereum upgrade boosts network efficiency',
+      content: 'Latest protocol update reduces gas fees and improves transaction speeds.',
+      time: '4h ago',
+      sentiment: 'Positive',
+      source: 'BlockBeats',
+    },
+  ];
+
+  const recommendedStrategies: RecommendedStrategy[] = [
+    {
+      id: '1',
+      title: 'Momentum Trading Strategy',
+      category: 'Trading',
+      description: 'Momentum • High volatility markets',
+      performance: '+24.5%',
+      icon: 'TrendingUp',
+    },
+    {
+      id: '2',
+      title: 'Mean Reversion Strategy',
+      category: 'Analysis',
+      description: 'Market Sentiment • Range-bound conditions',
+      performance: '+12.2%',
+      icon: 'Target',
+    },
+    {
+      id: '3',
+      title: 'Breakout Detection Strategy',
+      category: 'Technical',
+      description: 'Price Action • Volume confirmation',
+      performance: '+18.4%',
+      icon: 'Zap',
+    },
+  ];
+
+  const getSentimentBadge = (sentiment?: string) => {
+    switch (sentiment) {
+      case 'Positive':
+        return <Badge className="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 text-[9px] font-bold px-1.5 py-0.5 uppercase">Positive</Badge>;
+      case 'Negative':
+        return <Badge className="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 text-[9px] font-bold px-1.5 py-0.5 uppercase">Negative</Badge>;
+      default:
+        return <Badge className="bg-slate-100 text-slate-600 dark:bg-slate-700/50 dark:text-slate-300 text-[9px] font-bold px-1.5 py-0.5 uppercase">Normal</Badge>;
+    }
+  };
+
+  const handleGuideSubmit = (event?: React.FormEvent) => {
+    if (event) event.preventDefault();
+    const text = guideInput.trim();
+    if (!text) return;
+
+    window.dispatchEvent(new CustomEvent('guide-chat-submit', { detail: { text } }));
+    setGuideInput('');
+    onStartChat();
+  };
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 0 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
+      exit={{ opacity: 0, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="flex-1 flex items-center justify-center p-6 bg-background"
+      className="absolute inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col"
     >
-      <Card className="max-w-2xl w-full p-8 shadow-lg">
-        <div className="text-center space-y-6">
-          {/* Welcome Header */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Sparkles className="w-8 h-8 text-primary animate-pulse" />
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                欢迎来到交易策略平台
-              </h1>
-            </div>
-            <p className="text-muted-foreground text-lg">
-              我们已经为您创建了第一个策略，让我们开始您的交易之旅！
-            </p>
-          </div>
+      <div className="flex-1 overflow-y-auto custom-scrollbar pt-6 pb-48 px-6">
+        <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8 mt-4">
+          <h1 className="text-4xl font-extrabold mb-2 bg-gradient-to-r from-primary to-emerald-500 bg-clip-text text-transparent">
+            What will you build today?
+          </h1>
+          <p className="text-muted-foreground text-base">
+            Build and backtest quantitative trading strategies with AI assistance.
+          </p>
+        </div>
 
-          {/* Features Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-8">
-            <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-muted/50">
-              <TrendingUp className="w-8 h-8 text-primary" />
-              <h3 className="font-semibold">策略编辑器</h3>
-              <p className="text-sm text-muted-foreground text-center">
-                可视化构建交易策略
-              </p>
+        {/* Happening Now Section */}
+        <div className="w-full mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-primary" />
+              <h3 className="font-bold text-lg">Happening Now</h3>
             </div>
-            <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-muted/50">
-              <Target className="w-8 h-8 text-primary" />
-              <h3 className="font-semibold">回测系统</h3>
-              <p className="text-sm text-muted-foreground text-center">
-                验证策略历史表现
-              </p>
-            </div>
-            <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-muted/50">
-              <Zap className="w-8 h-8 text-primary" />
-              <h3 className="font-semibold">AI 助手</h3>
-              <p className="text-sm text-muted-foreground text-center">
-                智能生成交易策略
-              </p>
+            <div className="flex gap-2">
+              <button className="w-8 h-8 flex items-center justify-center rounded-full border hover:bg-accent transition-colors">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button className="w-8 h-8 flex items-center justify-center rounded-full border hover:bg-accent transition-colors">
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
-          {/* Quick Start Tips */}
-          <div className="bg-primary/5 rounded-lg p-4 space-y-2 text-left">
-            <h3 className="font-semibold text-sm">快速开始指南：</h3>
-            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-              <li>点击左侧策略列表查看您的策略</li>
-              <li>使用策略编辑器构建交易规则</li>
-              <li>在回测面板验证策略效果</li>
-              <li>使用 AI 助手快速生成策略</li>
-            </ul>
-          </div>
-
-          {/* CTA Button */}
-          <div className="pt-4">
-            <Button
-              size="lg"
-              className="w-full md:w-auto px-8"
-              onClick={onGetStarted}
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              开始使用
-            </Button>
+          <div className="overflow-x-auto pb-1">
+            <div className="flex gap-4 min-w-max">
+              {loading ? (
+                Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="p-5 rounded-xl border bg-card h-52 w-80 flex flex-col">
+                    <div className="flex items-center justify-between mb-2">
+                      <Skeleton className="h-5 w-16" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-6 w-full mb-2" />
+                    <Skeleton className="h-6 w-3/4 mb-2" />
+                    <Skeleton className="h-4 w-full mb-1" />
+                    <Skeleton className="h-4 w-5/6 mb-2" />
+                    <div className="mt-auto flex items-center justify-end">
+                      <Skeleton className="h-3 w-12" />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                newsData.map((news) => (
+                  <div
+                    key={news.id}
+                    onClick={() => onNewsClick(news)}
+                    className="p-5 rounded-xl border bg-card hover:shadow-lg hover:border-primary/20 transition-all cursor-pointer group h-52 w-80 flex flex-col"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      {getSentimentBadge(news.sentiment)}
+                      <span className="text-[10px] text-muted-foreground">{news.source}</span>
+                    </div>
+                    <p className="font-bold text-base mb-2 group-hover:text-primary transition-colors line-clamp-3 leading-relaxed">
+                      {news.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                      {news.content}
+                    </p>
+                    <div className="mt-auto flex items-center justify-end">
+                      <span className="text-[10px] text-muted-foreground">{news.time}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
-      </Card>
+
+        {/* Recommended Strategies Section */}
+        <div className="w-full">
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+            <Target className="w-5 h-5 text-primary" />
+            Recommended Strategies
+          </h3>
+          <div className="bg-card rounded-xl border divide-y overflow-hidden shadow-sm">
+            {recommendedStrategies.map((strategy) => (
+              <div
+                key={strategy.id}
+                onClick={() => onStrategyClick(strategy)}
+                className="p-4 flex items-center justify-between hover:bg-accent transition-colors group cursor-pointer"
+              >
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="w-10 h-10 flex-shrink-0 rounded-full bg-muted flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+                    {strategy.icon === 'TrendingUp' && <TrendingUp className="w-5 h-5" />}
+                    {strategy.icon === 'Target' && <Target className="w-5 h-5" />}
+                    {strategy.icon === 'Zap' && <Zap className="w-5 h-5" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-base truncate">{strategy.title}</p>
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-2 mt-0.5">
+                      <Badge variant="secondary" className="text-[8px] uppercase font-bold">
+                        {strategy.category}
+                      </Badge>
+                      <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                      {strategy.description}
+                    </p>
+                  </div>
+                  <div className="hidden md:flex flex-col items-end px-6">
+                    <span className="text-[10px] font-bold text-emerald-500">{strategy.performance}</span>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-40 pt-4 pb-6 px-8 bg-gradient-to-t from-background via-background/95 to-transparent dark:from-background-dark dark:via-background-dark/95 backdrop-blur-[12px]">
+        <div className="max-w-4xl mx-auto">
+          <form className="relative group" onSubmit={handleGuideSubmit}>
+            <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+              <Sparkles className="h-5 w-5 text-primary/70" />
+            </div>
+            <input
+              className="block w-full pl-14 pr-16 py-3.5 bg-white/80 dark:bg-surface-dark/80 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl dark:shadow-2xl focus:ring-2 focus:ring-primary/20 focus:border-primary/30 text-base transition-all placeholder:text-slate-400 dark:text-white"
+              placeholder="Ask NOFA AI to generate a strategy..."
+              type="text"
+              value={guideInput}
+              onChange={(e) => setGuideInput(e.target.value)}
+            />
+            <div className="absolute inset-y-0 right-3 flex items-center">
+              <button
+                type="submit"
+                className="bg-primary text-white w-9 h-9 rounded-xl hover:bg-emerald-800 transition-all shadow-md flex items-center justify-center hover:scale-105 active:scale-95"
+              >
+                <ArrowUp className="h-5 w-5" />
+              </button>
+            </div>
+          </form>
+          <div className="flex flex-wrap items-center justify-center gap-4 mt-2">
+            <button className="text-[11px] pointer-events-none text-slate-500 hover:text-primary font-medium flex items-center gap-1 transition-colors px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
+              <Bolt className="h-3.5 w-3.5" />
+              Analyze Markets
+            </button>
+            <button className="text-[11px] pointer-events-none text-slate-500 hover:text-primary font-medium flex items-center gap-1 transition-colors px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
+              <Code className="h-3.5 w-3.5" />
+              Generate Strategy
+            </button>
+            <button className="text-[11px] pointer-events-none text-slate-500 hover:text-primary font-medium flex items-center gap-1 transition-colors px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
+              <History className="h-3.5 w-3.5" />
+              Backtest History
+            </button>
+            <button className="text-[11px] pointer-events-none text-slate-500 hover:text-primary font-medium flex items-center gap-1 transition-colors px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
+              <MessageCircle className="h-3.5 w-3.5" />
+              Recent Chats
+            </button>
+          </div>
+        </div>
+      </div>
+      </div>
     </motion.div>
   );
 }

@@ -17,16 +17,43 @@ export default function HomePage() {
   const switchToEditorRef = useRef<(() => void) | null>(null);
   const switchToBacktestRef = useRef<(() => void) | null>(null);
   const runBacktestRef = useRef<(() => Promise<void>) | null>(null);
-  const { strategies, createStrategy, chatMessages, currentStrategyId } = useStrategyStore();
+  const hasInitializedGuide = useRef(false);
+  const { strategies, createStrategy, chatMessages, currentStrategyId, hasHydrated } = useStrategyStore();
+  const storedMessagesCacheRef = useRef(new Map<string, unknown[]>());
+
+  const getStorageKey = (strategyId?: string | null) => `aiChatMessages:${strategyId || 'default'}`;
+
+  const loadStoredMessages = (storageKey: string) => {
+    if (typeof window === 'undefined') return [] as unknown[];
+
+    const cached = storedMessagesCacheRef.current.get(storageKey);
+    if (cached) return cached;
+
+    try {
+      const raw = localStorage.getItem(storageKey);
+      const parsed = raw ? (JSON.parse(raw) as unknown[]) : [];
+      storedMessagesCacheRef.current.set(storageKey, parsed);
+      return parsed;
+    } catch {
+      const empty: unknown[] = [];
+      storedMessagesCacheRef.current.set(storageKey, empty);
+      return empty;
+    }
+  };
+
+  const hasChatMessagesForStrategy = (strategyId: string | null) => {
+    if (!strategyId) return false;
+    const storedMessages = loadStoredMessages(getStorageKey(strategyId));
+    return storedMessages.length > 0;
+  };
 
   // Check if a strategy has been edited or has chat messages
   const isStrategyUntouched = (strategyId: string) => {
     const strategy = strategies.find((s) => s.id === strategyId);
     if (!strategy) return true;
 
-    // Check if has chat messages
-    const hasChatMessages = chatMessages[strategyId]?.length > 0;
-    if (hasChatMessages) return false;
+    // Check if has chat messages (store or localStorage)
+    if (hasChatMessagesForStrategy(strategyId)) return false;
 
     // Check if strategy tree has been edited (compare with DEFAULT_STRATEGY_TREE structure)
     const tree = strategy.strategyTree;
@@ -48,15 +75,24 @@ export default function HomePage() {
   // Wait for client hydration / local data access
   // Simulate fetch data from backend
   useEffect(() => {
+    // Only initialize once when strategies are loaded
+    if (hasInitializedGuide.current || !hasHydrated) return;
+
     let fadeTimer: ReturnType<typeof setTimeout>;
     const readyTimer = setTimeout(() => {
       setIsReady(true);
       fadeTimer = setTimeout(() => {
         setShowOverlay(false);
+        if (hasChatMessagesForStrategy(currentStrategyId ?? null)) {
+          setShowGuide(false);
+          hasInitializedGuide.current = true;
+          return;
+        }
         // Check if this is a new user (no strategies)
         if (strategies.length === 0) {
-          const newStrategyId = createStrategy();
+          createStrategy();
           setShowGuide(true);
+          hasInitializedGuide.current = true;
         } else if (!currentStrategyId) {
           // Has strategies but no current strategy selected
           // Check if first strategy is untouched to show guide
@@ -64,11 +100,13 @@ export default function HomePage() {
           if (firstStrategy && isStrategyUntouched(firstStrategy.id)) {
             setShowGuide(true);
           }
+          hasInitializedGuide.current = true;
         } else {
           // Has current strategy - check if it's untouched to show guide
           if (isStrategyUntouched(currentStrategyId)) {
             setShowGuide(true);
           }
+          hasInitializedGuide.current = true;
         }
       }, 500);
     }, 500);
@@ -77,7 +115,25 @@ export default function HomePage() {
       clearTimeout(readyTimer);
       if (fadeTimer) clearTimeout(fadeTimer);
     };
-  }, [strategies]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strategies, chatMessages, hasHydrated, currentStrategyId, createStrategy]);
+
+  // Check if guide should be shown when strategy or chat changes
+  useEffect(() => {
+    if (!isReady || showOverlay || !hasHydrated) return;
+
+    if (hasChatMessagesForStrategy(currentStrategyId ?? null)) {
+      setShowGuide(false);
+      return;
+    }
+
+    if (currentStrategyId && isStrategyUntouched(currentStrategyId)) {
+      setShowGuide(true);
+    } else {
+      setShowGuide(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStrategyId, isReady, showOverlay, chatMessages, strategies, hasHydrated]);
 
   const handleCreateWithAI = () => {
     // Focus the AI chat input
@@ -109,6 +165,32 @@ export default function HomePage() {
     switchToBacktestRef.current?.();
   };
 
+  const handleNewsClick = (news: any) => {
+    // Close guide and switch to main interface
+    setShowGuide(false);
+    // Focus AI chat and send news analysis request
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+      // TODO: Send news content to AI for analysis
+      // This would typically trigger an AI message with the news content
+    }, 300);
+  };
+
+  const handleStrategyClick = (strategy: any) => {
+    // Close guide and switch to main interface with strategy and backtest
+    setShowGuide(false);
+    // Switch to backtest view and run backtest
+    setTimeout(() => {
+      switchToBacktestRef.current?.();
+      runBacktestRef.current?.();
+      // TODO: Load the recommended strategy into the editor
+    }, 300);
+  };
+
+  const handleStartChat = () => {
+    setShowGuide(false);
+  };
+
   const handleGetStarted = () => {
     setShowGuide(false);
   };
@@ -119,28 +201,31 @@ export default function HomePage() {
       <div className="flex-1 flex overflow-hidden">
         <StrategyListSidebar />
 
-        {/* Guide View for new users - takes up the main area */}
-        <AnimatePresence mode="wait">
-          {showGuide ? (
-            <GuideView key="guide" onGetStarted={handleGetStarted} />
-          ) : (
-            <>
-              <MainContentArea
-                key="main"
-                onCreateWithAI={handleCreateWithAI}
-                onSwitchToEditor={handleSwitchToEditor}
-                onSwitchToBacktest={handleSwitchToBacktest}
-                onRegisterRunBacktest={handleRegisterRunBacktest}
+        {/* Main content area wrapper - relative positioning for GuideView */}
+        <div className="flex-1 flex relative overflow-hidden">
+          <MainContentArea
+            onCreateWithAI={handleCreateWithAI}
+            onSwitchToEditor={handleSwitchToEditor}
+            onSwitchToBacktest={handleSwitchToBacktest}
+            onRegisterRunBacktest={handleRegisterRunBacktest}
+          />
+          <AIChatPanel
+            onApplyStrategy={handleApplyStrategy}
+            onRunBacktest={handleRunBacktest}
+            onSwitchToBacktest={switchToBacktest}
+          />
+
+          {/* Guide View overlays on top when active */}
+          <AnimatePresence>
+            {showGuide && (
+              <GuideView
+                onNewsClick={handleNewsClick}
+                onStrategyClick={handleStrategyClick}
+                onStartChat={handleStartChat}
               />
-              <AIChatPanel
-                key="chat"
-                onApplyStrategy={handleApplyStrategy}
-                onRunBacktest={handleRunBacktest}
-                onSwitchToBacktest={switchToBacktest}
-              />
-            </>
-          )}
-        </AnimatePresence>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       <AnimatePresence>
