@@ -65,6 +65,7 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest }: AIChatPanelProps
   const [isReasoningEnabled, setIsReasoningEnabled] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const { currentStrategyId, updateStrategyTree } = useStrategyStore();
 
@@ -93,8 +94,15 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest }: AIChatPanelProps
     return text.trim().length > 0;
   }, [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (smooth: boolean = true) => {
+    if (smooth) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      const scrollArea = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+      if (scrollArea) {
+        scrollArea.scrollTop = scrollArea.scrollHeight + 99999;
+      }
+    }
   };
 
   // 从 localStorage 读取保存的宽度
@@ -108,7 +116,7 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest }: AIChatPanelProps
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
+    scrollToBottom(true);
     // Scroll code blocks to bottom for better UX with max-height
     setTimeout(() => {
       const codeBlocks = document.querySelectorAll('[data-streamdown="code-block-body"]');
@@ -125,6 +133,10 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest }: AIChatPanelProps
     const stored = loadStoredMessages(storageKey);
     if (stored.length) {
       setMessages(stored);
+      // Scroll to bottom after loading messages (no animation)
+      setTimeout(() => {
+        scrollToBottom(false);
+      }, 0);
     }
   }, [storageKey, setMessages]);
 
@@ -257,7 +269,7 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest }: AIChatPanelProps
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 min-h-0">
+      <ScrollArea ref={scrollAreaRef} className="flex-1 min-h-0">
         <div className="p-3 space-y-4">
           {messages.length === 0 ? (
             <div className="space-y-4">
@@ -319,7 +331,7 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest }: AIChatPanelProps
             </div>
           )}
 
-          <div ref={messagesEndRef} />
+          <div ref={messagesEndRef} className="relative -bottom-4" />
         </div>
       </ScrollArea>
 
@@ -395,7 +407,7 @@ function ChatMessageBubble({ message, onApplyStrategy, onRunBacktest, isGenerati
     if (extractedStrategy && strategyCardRef.current && !isGeneratingResponse) {
       const scrollArea = strategyCardRef.current?.closest('[data-radix-scroll-area-viewport]') as HTMLElement;
       if (scrollArea) {
-        scrollArea.scrollTop += 200;
+        scrollArea.scrollTop += 400;
       }
     }
   }, [extractedStrategy, isGeneratingResponse]);
