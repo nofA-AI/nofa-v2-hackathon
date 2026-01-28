@@ -19,24 +19,24 @@ export default function HomePage() {
   const runBacktestRef = useRef<(() => Promise<void>) | null>(null);
   const hasInitializedGuide = useRef(false);
   const { strategies, createStrategy, chatMessages, currentStrategyId } = useStrategyStore();
-  const storedMessagesCacheRef = useRef(new Map<string, unknown[]>());
+  const [storedMessagesCache, setStoredMessagesCache] = useState(new Map<string, unknown[]>());
 
   const getStorageKey = (strategyId?: string | null) => `aiChatMessages:${strategyId || 'default'}`;
 
   const loadStoredMessages = (storageKey: string) => {
     if (typeof window === 'undefined') return [] as unknown[];
 
-    const cached = storedMessagesCacheRef.current.get(storageKey);
+    const cached = storedMessagesCache.get(storageKey);
     if (cached) return cached;
 
     try {
       const raw = localStorage.getItem(storageKey);
       const parsed = raw ? (JSON.parse(raw) as unknown[]) : [];
-      storedMessagesCacheRef.current.set(storageKey, parsed);
+      setStoredMessagesCache(prev => new Map(prev).set(storageKey, parsed));
       return parsed;
     } catch {
       const empty: unknown[] = [];
-      storedMessagesCacheRef.current.set(storageKey, empty);
+      setStoredMessagesCache(prev => new Map(prev).set(storageKey, empty));
       return empty;
     }
   };
@@ -47,9 +47,26 @@ export default function HomePage() {
     return storedMessages.length > 0;
   };
 
+  // Preload all aiChatMessages into cache on mount and invalidate on currentStrategyId change
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    strategies.forEach((strategy) => {
+      const storageKey = getStorageKey(strategy.id);
+      if (!storedMessagesCache.has(storageKey)) {
+        loadStoredMessages(storageKey);
+      }
+    });
+  }, [strategies, storedMessagesCache]);
+
+  // Invalidate cache for current strategy when switching
   useEffect(() => {
     if (!currentStrategyId) return;
-    storedMessagesCacheRef.current.delete(getStorageKey(currentStrategyId));
+    setStoredMessagesCache(prev => {
+      const next = new Map(prev);
+      next.delete(getStorageKey(currentStrategyId));
+      return next;
+    });
   }, [currentStrategyId]);
 
   // Check if a strategy has been edited or has chat messages
@@ -138,7 +155,7 @@ export default function HomePage() {
       setShowGuide(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStrategyId, isReady, showOverlay, strategies]);
+  }, [currentStrategyId, isReady, showOverlay, strategies, storedMessagesCache]);
 
   const handleCreateWithAI = () => {
     // Focus the AI chat input
