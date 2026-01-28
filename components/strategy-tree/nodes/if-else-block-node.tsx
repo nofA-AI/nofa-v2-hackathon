@@ -235,7 +235,7 @@ export function IfElseBlockNode({
           </div> */}
 
           <div className="flex-1 flex gap-2 min-w-0">
-            <div className="h-6 w-6 flex items-center justify-center text-xs font-semibold rounded bg-primary text-primary-foreground">
+            <div className="flex-shrink-0 h-6 w-6 flex items-center justify-center text-xs font-semibold rounded bg-primary text-primary-foreground">
               IF
             </div>
             <div>
