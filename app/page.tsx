@@ -6,14 +6,44 @@ import { Header } from '@/components/header';
 import { StrategyListSidebar } from '@/components/strategy-list-sidebar';
 import { MainContentArea } from '@/components/main-content-area';
 import { AIChatPanel } from '@/components/ai-chat-panel';
+import { GuideView } from '@/components/guide-view';
+import { useStrategyStore } from '@/lib/store/strategy-store';
 
 export default function HomePage() {
   const [isReady, setIsReady] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
+  const [showGuide, setShowGuide] = useState(false);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const switchToEditorRef = useRef<(() => void) | null>(null);
   const switchToBacktestRef = useRef<(() => void) | null>(null);
   const runBacktestRef = useRef<(() => Promise<void>) | null>(null);
+  const { strategies, createStrategy, chatMessages, currentStrategyId } = useStrategyStore();
+
+  // Check if a strategy has been edited or has chat messages
+  const isStrategyUntouched = (strategyId: string) => {
+    const strategy = strategies.find((s) => s.id === strategyId);
+    if (!strategy) return true;
+
+    // Check if has chat messages
+    const hasChatMessages = chatMessages[strategyId]?.length > 0;
+    if (hasChatMessages) return false;
+
+    // Check if strategy tree has been edited (compare with DEFAULT_STRATEGY_TREE structure)
+    const tree = strategy.strategyTree;
+    const mainDecision = tree.mainDecision;
+
+    // Handle both single and array mainDecision
+    if (Array.isArray(mainDecision)) {
+      return mainDecision.length === 0;
+    }
+
+    const isDefaultTree =
+      mainDecision.conditions.length === 0 &&
+      mainDecision.thenAction === 'NO ACTION' &&
+      mainDecision.elseAction === 'NO ACTION';
+
+    return isDefaultTree;
+  };
 
   // Wait for client hydration / local data access
   // Simulate fetch data from backend
@@ -21,14 +51,33 @@ export default function HomePage() {
     let fadeTimer: ReturnType<typeof setTimeout>;
     const readyTimer = setTimeout(() => {
       setIsReady(true);
-      fadeTimer = setTimeout(() => setShowOverlay(false), 500);
+      fadeTimer = setTimeout(() => {
+        setShowOverlay(false);
+        // Check if this is a new user (no strategies)
+        if (strategies.length === 0) {
+          const newStrategyId = createStrategy();
+          setShowGuide(true);
+        } else if (!currentStrategyId) {
+          // Has strategies but no current strategy selected
+          // Check if first strategy is untouched to show guide
+          const firstStrategy = strategies[0];
+          if (firstStrategy && isStrategyUntouched(firstStrategy.id)) {
+            setShowGuide(true);
+          }
+        } else {
+          // Has current strategy - check if it's untouched to show guide
+          if (isStrategyUntouched(currentStrategyId)) {
+            setShowGuide(true);
+          }
+        }
+      }, 500);
     }, 500);
 
     return () => {
       clearTimeout(readyTimer);
       if (fadeTimer) clearTimeout(fadeTimer);
     };
-  }, []);
+  }, [strategies]);
 
   const handleCreateWithAI = () => {
     // Focus the AI chat input
@@ -60,22 +109,38 @@ export default function HomePage() {
     switchToBacktestRef.current?.();
   };
 
+  const handleGetStarted = () => {
+    setShowGuide(false);
+  };
+
   return (
     <div className="h-screen flex flex-col relative overflow-hidden">
       <Header />
       <div className="flex-1 flex overflow-hidden">
         <StrategyListSidebar />
-        <MainContentArea
-          onCreateWithAI={handleCreateWithAI}
-          onSwitchToEditor={handleSwitchToEditor}
-          onSwitchToBacktest={handleSwitchToBacktest}
-          onRegisterRunBacktest={handleRegisterRunBacktest}
-        />
-        <AIChatPanel
-          onApplyStrategy={handleApplyStrategy}
-          onRunBacktest={handleRunBacktest}
-          onSwitchToBacktest={switchToBacktest}
-        />
+
+        {/* Guide View for new users - takes up the main area */}
+        <AnimatePresence mode="wait">
+          {showGuide ? (
+            <GuideView key="guide" onGetStarted={handleGetStarted} />
+          ) : (
+            <>
+              <MainContentArea
+                key="main"
+                onCreateWithAI={handleCreateWithAI}
+                onSwitchToEditor={handleSwitchToEditor}
+                onSwitchToBacktest={handleSwitchToBacktest}
+                onRegisterRunBacktest={handleRegisterRunBacktest}
+              />
+              <AIChatPanel
+                key="chat"
+                onApplyStrategy={handleApplyStrategy}
+                onRunBacktest={handleRunBacktest}
+                onSwitchToBacktest={switchToBacktest}
+              />
+            </>
+          )}
+        </AnimatePresence>
       </div>
 
       <AnimatePresence>
