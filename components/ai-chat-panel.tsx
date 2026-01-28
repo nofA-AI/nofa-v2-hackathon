@@ -78,6 +78,7 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest, onSwitchToBacktest
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(false);
 
   const { currentStrategyId, updateStrategyTree, addBacktestResult } = useStrategyStore();
 
@@ -112,7 +113,10 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest, onSwitchToBacktest
     } else {
       const scrollArea = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
       if (scrollArea) {
-        scrollArea.scrollTop = scrollArea.scrollHeight + 99999;
+        // Wait for DOM to be fully rendered before scrolling
+        requestAnimationFrame(() => {
+          scrollArea.scrollTop = scrollArea.scrollHeight + 99999;
+        });
       }
     }
   };
@@ -135,7 +139,7 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest, onSwitchToBacktest
       codeBlocks.forEach(block => {
         (block as HTMLElement).scrollTop = (block as HTMLElement).scrollHeight;
       });
-    }, 0);
+    }, 50);
   }, [messages]);
 
   // Hydrate chat history per strategy after mount/change
@@ -145,10 +149,15 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest, onSwitchToBacktest
     const stored = loadStoredMessages(storageKey);
     if (stored.length) {
       setMessages(stored);
-      // Scroll to bottom after loading messages (no animation)
+      // 区别页面刷新打开（延迟300ms）和切换策略打开（延迟50ms）
+      const delay = isMountedRef.current ? 0 : 300;
       setTimeout(() => {
         scrollToBottom(false);
-      }, 0);
+      }, delay);
+      // 标记已经挂载，后续切换策略时使用较短延迟
+      if (!isMountedRef.current) {
+        isMountedRef.current = true;
+      }
     }
   }, [storageKey, setMessages]);
 
