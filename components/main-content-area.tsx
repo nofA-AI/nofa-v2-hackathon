@@ -7,13 +7,15 @@ import { BacktestResults } from '@/components/backtest-results';
 import { useStrategyStore } from '@/lib/store/strategy-store';
 
 interface MainContentAreaProps {
+  width?: number;
+  onResizeStart?: (e: React.MouseEvent) => void;
   onCreateWithAI?: () => void;
   onSwitchToEditor?: (handler: () => void) => void;
   onSwitchToBacktest?: (handler: () => void) => void;
   onRegisterRunBacktest?: (runner: () => Promise<void>) => void;
 }
 
-export function MainContentArea({ onCreateWithAI, onSwitchToEditor, onSwitchToBacktest, onRegisterRunBacktest }: MainContentAreaProps) {
+export function MainContentArea({ width, onResizeStart, onCreateWithAI, onSwitchToEditor, onSwitchToBacktest, onRegisterRunBacktest }: MainContentAreaProps) {
   const [activeTab, setActiveTab] = useState('editor');
   const { currentStrategyId, createStrategy } = useStrategyStore();
 
@@ -40,7 +42,12 @@ export function MainContentArea({ onCreateWithAI, onSwitchToEditor, onSwitchToBa
 
   if (!currentStrategyId) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-background">
+      <div className="flex-1 flex items-center justify-center bg-background relative" style={width ? { flex: `0 0 ${width}%` } : {}}>
+        {/* Resize Handle */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1 hover:bg-primary/50 cursor-ew-resize transition-colors z-10"
+          onMouseDown={(e) => onResizeStart?.(e)}
+        />
         <div className="text-center max-w-md">
           <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <svg
@@ -77,7 +84,12 @@ export function MainContentArea({ onCreateWithAI, onSwitchToEditor, onSwitchToBa
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-background overflow-hidden">
+    <div className="flex-1 flex flex-col bg-background overflow-hidden relative border-l border-border" style={width ? { flex: `0 0 ${width}%` } : {}}>
+      {/* Resize Handle */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1 hover:bg-primary/50 cursor-ew-resize transition-colors z-10"
+        onMouseDown={(e) => onResizeStart?.(e)}
+      />
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         <div className="border-b border-border bg-card px-4">
           <TabsList className="h-12 bg-transparent p-0 gap-4">

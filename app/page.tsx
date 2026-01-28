@@ -13,15 +13,21 @@ export default function HomePage() {
   const [isReady, setIsReady] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [chatPanelWidth, setChatPanelWidth] = useState(50); // Percentage width
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const switchToEditorRef = useRef<(() => void) | null>(null);
   const switchToBacktestRef = useRef<(() => void) | null>(null);
   const runBacktestRef = useRef<(() => Promise<void>) | null>(null);
   const hasInitializedGuide = useRef(false);
-  const { strategies, createStrategy, chatMessages, currentStrategyId } = useStrategyStore();
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { strategies, createStrategy, chatMessages, currentStrategyId, updateStrategyTree } = useStrategyStore();
   const [storedMessagesCache, setStoredMessagesCache] = useState(new Map<string, unknown[]>());
 
   const getStorageKey = (strategyId?: string | null) => `aiChatMessages:${strategyId || 'default'}`;
+
 
   const loadStoredMessages = (storageKey: string) => {
     if (typeof window === 'undefined') return [] as unknown[];
@@ -93,6 +99,19 @@ export default function HomePage() {
 
     return isDefaultTree;
   };
+
+  // Load saved panel width from localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const saved = localStorage.getItem('chatPanelWidth');
+    if (saved) {
+      const width = parseFloat(saved);
+      if (!isNaN(width)) {
+        setChatPanelWidth(width);
+      }
+    }
+  }, []);
 
   // Wait for client hydration / local data access
   // Simulate fetch data from backend
@@ -199,14 +218,28 @@ export default function HomePage() {
   };
 
   const handleStrategyClick = (strategy: any) => {
-    // Close guide and switch to main interface with strategy and backtest
+    // Close guide and apply strategy to editor
     setShowGuide(false);
-    // Switch to backtest view and run backtest
-    setTimeout(() => {
-      switchToBacktestRef.current?.();
-      runBacktestRef.current?.();
-      // TODO: Load the recommended strategy into the editor
-    }, 300);
+
+    if (strategy.strategyJson) {
+      // Apply the strategy JSON to the current strategy
+      updateStrategyTree(strategy.strategyJson);
+
+      // Send mock assistant message
+      const assistantMessage = `I've generated the **${strategy.strategyJson.name}** strategy for you. ${strategy.strategyJson.description}\n\nYou can now:\n- Review and optimize the strategy in the editor\n- Run a backtest to see how it performs\n- Deploy it when you're ready`;
+
+      window.dispatchEvent(new CustomEvent('guide-strategy-applied', {
+        detail: {
+          message: assistantMessage,
+          strategyJson: strategy.strategyJson
+        }
+      }));
+
+      // Switch to editor view to see the applied strategy
+      setTimeout(() => {
+        switchToEditorRef.current?.();
+      }, 300);
+    }
   };
 
   const handleStartChat = () => {
@@ -217,24 +250,66 @@ export default function HomePage() {
     setShowGuide(false);
   };
 
+  // Handle resize start
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = chatPanelWidth;
+  };
+
+  // Handle resize move
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+
+      const container = containerRef.current;
+      const containerWidth = container.offsetWidth;
+      const deltaX = e.clientX - startXRef.current;
+      const deltaPercent = (deltaX / containerWidth) * 100;
+      const newWidth = Math.max(15, Math.min(60, startWidthRef.current + deltaPercent));
+
+      setChatPanelWidth(newWidth);
+      // Save to localStorage
+      localStorage.setItem('chatPanelWidth', newWidth.toString());
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
   return (
-    <div className="h-screen flex flex-col relative overflow-hidden">
+    <div className="h-screen flex flex-col relative overflow-hidden" ref={containerRef}>
       <Header />
       <div className="flex-1 flex overflow-hidden">
         <StrategyListSidebar />
 
         {/* Main content area wrapper - relative positioning for GuideView */}
         <div className="flex-1 flex relative overflow-hidden">
+          <AIChatPanel
+            width={chatPanelWidth}
+            onApplyStrategy={handleApplyStrategy}
+            onRunBacktest={handleRunBacktest}
+            onSwitchToBacktest={switchToBacktest}
+          />
           <MainContentArea
+            width={100 - chatPanelWidth}
+            onResizeStart={handleResizeStart}
             onCreateWithAI={handleCreateWithAI}
             onSwitchToEditor={handleSwitchToEditor}
             onSwitchToBacktest={handleSwitchToBacktest}
             onRegisterRunBacktest={handleRegisterRunBacktest}
-          />
-          <AIChatPanel
-            onApplyStrategy={handleApplyStrategy}
-            onRunBacktest={handleRunBacktest}
-            onSwitchToBacktest={switchToBacktest}
           />
 
           {/* Guide View overlays on top when active */}

@@ -22,6 +22,7 @@ import './streamdown.css';
 import { code } from "./code";
 
 interface AIChatPanelProps {
+  width?: number;
   onApplyStrategy?: (strategy: StrategyTree) => void;
   onRunBacktest?: () => void;
   onSwitchToBacktest?: () => void;
@@ -61,10 +62,9 @@ const loadStoredMessages = (storageKey: string): UIMessage[] => {
   }
 };
 
-export function AIChatPanel({ onApplyStrategy, onRunBacktest, onSwitchToBacktest }: AIChatPanelProps) {
+export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToBacktest }: AIChatPanelProps) {
   const [input, setInput] = useState('');
-  const [width, setWidth] = useState(360);
-  const [isResizing, setIsResizing] = useState(false);
+
   const [selectedModelId, setSelectedModelId] = useState<modelID>('gpt-5.2');
   const [isReasoningEnabled, setIsReasoningEnabled] = useState<boolean>(false);
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
@@ -121,16 +121,6 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest, onSwitchToBacktest
     }
   };
 
-  // 从 localStorage 读取保存的宽度
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedWidth = localStorage.getItem('aiChatPanelWidth');
-      if (savedWidth) {
-        setWidth(parseInt(savedWidth, 10));
-      }
-    }
-  }, []);
-
   useEffect(() => {
     scrollToBottom(true);
     // Scroll code blocks to bottom for better UX with max-height
@@ -172,42 +162,6 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest, onSwitchToBacktest
     }
   }, [messages, storageKey]);
 
-  // 保存宽度到 localStorage（仅在不处于拖动状态时保存）
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !isResizing) {
-      localStorage.setItem('aiChatPanelWidth', width.toString());
-    }
-  }, [width, isResizing]);
-
-  // Handle resize
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-
-      const newWidth = window.innerWidth - e.clientX;
-      // 限制最小宽度为 280px，最大宽度为 600px
-      setWidth(Math.min(Math.max(newWidth, 280), 600));
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'ew-resize';
-      document.body.style.userSelect = 'none';
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, [isResizing]);
-
   const handleSend = async (messageText?: string) => {
     const text = messageText || input.trim();
     if (!text || !currentStrategyId || isGeneratingResponse) return;
@@ -244,11 +198,50 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest, onSwitchToBacktest
       );
     };
 
+    const handleStrategyApplied = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: string; strategyJson?: any }>).detail;
+      const message = detail?.message?.trim();
+      const strategyJson = detail?.strategyJson;
+      if (!message || !currentStrategyId) return;
+
+      // Add mock assistant message to chat
+      const parts: any[] = [
+        { type: 'text', text: message },
+      ];
+
+      if (strategyJson) {
+        parts.push({
+          type: 'tool-generateStrategyTree',
+          toolCallId: `call_${Date.now()}`,
+          state: 'output-available',
+          input: {
+            summary: 'Generated strategy tree from guide',
+          },
+          output: {
+            success: true,
+            preGenerated: true,
+            strategyTree: strategyJson,
+          },
+        });
+      }
+
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          parts,
+        } as UIMessage,
+      ]);
+    };
+
     window.addEventListener('guide-chat-submit', handleGuideSubmit);
+    window.addEventListener('guide-strategy-applied', handleStrategyApplied);
     return () => {
       window.removeEventListener('guide-chat-submit', handleGuideSubmit);
+      window.removeEventListener('guide-strategy-applied', handleStrategyApplied);
     };
-  }, [currentStrategyId, isGeneratingResponse, isReasoningEnabled, selectedModelId, sendMessage]);
+  }, [currentStrategyId, isGeneratingResponse, isReasoningEnabled, selectedModelId, sendMessage, setMessages]);
 
   const handleApplyStrategy = (strategy: StrategyTree) => {
     updateStrategyTree(strategy);
@@ -285,11 +278,7 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest, onSwitchToBacktest
 
   if (!currentStrategyId) {
     return (
-      <div className="border-l border-border bg-card flex flex-col" style={{ width: `${width}px` }}>
-        <div
-          className="absolute left-0 top-0 bottom-0 w-1 hover:bg-primary/50 cursor-ew-resize transition-colors"
-          onMouseDown={() => setIsResizing(true)}
-        />
+      <div className="flex-1 bg-card flex flex-col">
         <div className="flex items-center justify-between p-3 border-b border-border h-[49px]">
           <h2 className="font-medium text-sm flex items-center gap-2">
             <Sparkle className="w-4 h-4 text-primary" weight="fill" />
@@ -306,12 +295,7 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest, onSwitchToBacktest
   }
 
   return (
-    <div className="border-l border-border bg-card flex flex-col min-h-0 overflow-hidden relative" style={{ width: `${width}px` }}>
-      {/* Resize Handle */}
-      <div
-        className="absolute left-0 top-0 bottom-0 w-1 hover:bg-primary/50 cursor-ew-resize transition-colors z-10"
-        onMouseDown={() => setIsResizing(true)}
-      />
+    <div className="flex-1 bg-card flex flex-col min-h-0 overflow-hidden relative" style={width ? { flex: `0 0 ${width}%` } : {}}>
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-border flex-shrink-0 h-[49px]">
         <h2 className="font-medium text-sm flex items-center gap-2">
@@ -413,7 +397,7 @@ export function AIChatPanel({ onApplyStrategy, onRunBacktest, onSwitchToBacktest
           />
           <Button
             size="icon"
-            className="absolute bottom-2 right-2 h-8 w-8"
+            className="absolute bottom-[13px] right-2 h-8 w-8"
             onClick={() => isGeneratingResponse ? stop() : handleSend()}
             disabled={!input.trim() && !isGeneratingResponse}
           >
@@ -445,6 +429,7 @@ interface ChatMessageBubbleProps {
 function ChatMessageBubble({ message, onApplyStrategy, onOpenBacktestDialog, isGeneratingResponse }: ChatMessageBubbleProps) {
   const isUser = message.role === 'user';
   const [extractedStrategy, setExtractedStrategy] = useState<StrategyTree | null>(null);
+  const [isPreGenerated, setIsPreGenerated] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
   const strategyCardRef = useRef<HTMLDivElement>(null);
 
@@ -461,8 +446,10 @@ function ChatMessageBubble({ message, onApplyStrategy, onOpenBacktestDialog, isG
 
             if (result.success && result.strategyTree) {
               setExtractedStrategy(result.strategyTree);
+              setIsPreGenerated(result.preGenerated);
             } else if (result.success && result.updatedTree) {
               setExtractedStrategy(result.updatedTree);
+              setIsPreGenerated(result.preGenerated);
             }
           } catch (e) {
             // Ignore parsing errors
@@ -550,20 +537,21 @@ function ChatMessageBubble({ message, onApplyStrategy, onOpenBacktestDialog, isG
             <p className="text-xs text-muted-foreground mb-3">
               {extractedStrategy.name}
             </p>
-            <Button
-              size="sm"
-              className="w-full gap-2"
-              onClick={handleApply}
-              disabled={hasApplied}
-            >
+            { !isPreGenerated && (
+              <Button
+                size="sm"
+                className="w-full gap-2"
+                onClick={handleApply}
+                disabled={hasApplied}
+              >
               <ChartLine className="w-4 h-4" />
               {hasApplied ? 'Strategy Applied' : 'Apply Strategy'}
-            </Button>
-            {hasApplied && (
+            </Button> )}
+            {(hasApplied || isPreGenerated) && (
               <Button
                 size="sm"
                 variant="outline"
-                className="w-full gap-2 mt-2"
+                className={cn("w-full gap-2", !isPreGenerated && "mt-2")}
                 onClick={() => onOpenBacktestDialog?.()}
               >
                 <Play className="w-4 h-4" />
