@@ -30,6 +30,10 @@ interface GuideViewProps {
   onStartChat: () => void;
 }
 
+const NEWS_CACHE_TTL = 1000 * 60 * 10;
+let cachedNews: NewsItem[] | null = null;
+let cachedNewsAt = 0;
+
 export function GuideView({ onNewsClick, onStrategyClick, onStartChat }: GuideViewProps) {
   const [newsData, setNewsData] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +44,12 @@ export function GuideView({ onNewsClick, onStrategyClick, onStartChat }: GuideVi
   }, []);
 
   const fetchNews = async () => {
+    if (cachedNews && Date.now() - cachedNewsAt < NEWS_CACHE_TTL) {
+      setNewsData(cachedNews);
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('https://api.theblockbeats.news/v1/open-api/open-flash?size=20&page=1&type=push&lang=en');
       const data = await response.json();
@@ -48,17 +58,22 @@ export function GuideView({ onNewsClick, onStrategyClick, onStartChat }: GuideVi
         const formattedNews: NewsItem[] = data.data.data.slice(0, 8).map((item: any) => ({
           id: item.id,
           title: item.title,
-          content: item.content || item.description || '',
+          content: stripHtml(item.content || item.description || ''),
           time: formatTime(item.create_time * 1000),
           sentiment: getSentiment(item.title + ' ' + item.content),
           source: 'BlockBeats',
         }));
         setNewsData(formattedNews);
+        cachedNews = formattedNews;
+        cachedNewsAt = Date.now();
       }
     } catch (error) {
       console.error('Failed to fetch news:', error);
       // Fallback to mock data
-      setNewsData(getMockNews());
+      const mockNews = getMockNews();
+      setNewsData(mockNews);
+      cachedNews = mockNews;
+      cachedNewsAt = Date.now();
     } finally {
       setLoading(false);
     }
@@ -71,6 +86,8 @@ export function GuideView({ onNewsClick, onStrategyClick, onStartChat }: GuideVi
     if (hours < 24) return `${hours}h ago`;
     return `${Math.floor(hours / 24)}d ago`;
   };
+
+  const stripHtml = (text: string) => text.replace(/<[^>]*>/g, '').trim();
 
   const getSentiment = (text: string): 'Positive' | 'Negative' | 'Normal' => {
     const lowerText = text.toLowerCase();
@@ -152,6 +169,13 @@ export function GuideView({ onNewsClick, onStrategyClick, onStartChat }: GuideVi
     onStartChat();
   };
 
+  const handleNewsCardClick = (news: NewsItem) => {
+    const text = `Analyze this news:\n\nTitle: ${news.title}\n\nContent: ${news.content}`.trim();
+    window.dispatchEvent(new CustomEvent('guide-chat-submit', { detail: { text } }));
+    onNewsClick(news);
+    onStartChat();
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 0 }}
@@ -179,7 +203,7 @@ export function GuideView({ onNewsClick, onStrategyClick, onStartChat }: GuideVi
               <Zap className="w-5 h-5 text-primary" />
               <h3 className="font-bold text-lg">Happening Now</h3>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 !hidden">
               <button className="w-8 h-8 flex items-center justify-center rounded-full border hover:bg-accent transition-colors">
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -211,7 +235,7 @@ export function GuideView({ onNewsClick, onStrategyClick, onStartChat }: GuideVi
                 newsData.map((news) => (
                   <div
                     key={news.id}
-                    onClick={() => onNewsClick(news)}
+                    onClick={() => handleNewsCardClick(news)}
                     className="p-5 rounded-xl border bg-card hover:shadow-lg hover:border-primary/20 transition-all cursor-pointer group h-52 w-80 flex flex-col"
                   >
                     <div className="flex items-center justify-between mb-2">

@@ -18,7 +18,7 @@ export default function HomePage() {
   const switchToBacktestRef = useRef<(() => void) | null>(null);
   const runBacktestRef = useRef<(() => Promise<void>) | null>(null);
   const hasInitializedGuide = useRef(false);
-  const { strategies, createStrategy, chatMessages, currentStrategyId, hasHydrated } = useStrategyStore();
+  const { strategies, createStrategy, chatMessages, currentStrategyId } = useStrategyStore();
   const storedMessagesCacheRef = useRef(new Map<string, unknown[]>());
 
   const getStorageKey = (strategyId?: string | null) => `aiChatMessages:${strategyId || 'default'}`;
@@ -46,6 +46,11 @@ export default function HomePage() {
     const storedMessages = loadStoredMessages(getStorageKey(strategyId));
     return storedMessages.length > 0;
   };
+
+  useEffect(() => {
+    if (!currentStrategyId) return;
+    storedMessagesCacheRef.current.delete(getStorageKey(currentStrategyId));
+  }, [currentStrategyId]);
 
   // Check if a strategy has been edited or has chat messages
   const isStrategyUntouched = (strategyId: string) => {
@@ -76,7 +81,7 @@ export default function HomePage() {
   // Simulate fetch data from backend
   useEffect(() => {
     // Only initialize once when strategies are loaded
-    if (hasInitializedGuide.current || !hasHydrated) return;
+    if (hasInitializedGuide.current) return;
 
     let fadeTimer: ReturnType<typeof setTimeout>;
     const readyTimer = setTimeout(() => {
@@ -116,11 +121,11 @@ export default function HomePage() {
       if (fadeTimer) clearTimeout(fadeTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [strategies, chatMessages, hasHydrated, currentStrategyId, createStrategy]);
+  }, [strategies, chatMessages, currentStrategyId, createStrategy]);
 
   // Check if guide should be shown when strategy or chat changes
   useEffect(() => {
-    if (!isReady || showOverlay || !hasHydrated) return;
+    if (!isReady || showOverlay) return;
 
     if (hasChatMessagesForStrategy(currentStrategyId ?? null)) {
       setShowGuide(false);
@@ -133,7 +138,7 @@ export default function HomePage() {
       setShowGuide(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStrategyId, isReady, showOverlay, chatMessages, strategies, hasHydrated]);
+  }, [currentStrategyId, isReady, showOverlay, strategies]);
 
   const handleCreateWithAI = () => {
     // Focus the AI chat input

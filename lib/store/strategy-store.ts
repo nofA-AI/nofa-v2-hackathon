@@ -20,7 +20,6 @@ interface StrategyStore {
   // Strategy list
   strategies: Strategy[];
   currentStrategyId: string | null;
-  hasHydrated: boolean;
 
   // History for undo/redo
   history: HistoryState;
@@ -37,7 +36,6 @@ interface StrategyStore {
   setCurrentStrategy: (id: string | null) => void;
   updateStrategyTree: (tree: StrategyTree) => void;
   updateStrategyName: (name: string) => void;
-  setHasHydrated: (hydrated: boolean) => void;
 
   // Undo/Redo
   undo: () => void;
@@ -60,7 +58,6 @@ export const useStrategyStore = create<StrategyStore>()(
     (set, get) => ({
       strategies: [],
       currentStrategyId: null,
-      hasHydrated: false,
       history: {
         past: [],
         present: DEFAULT_STRATEGY_TREE,
@@ -167,10 +164,6 @@ export const useStrategyStore = create<StrategyStore>()(
         }));
       },
 
-      setHasHydrated: (hydrated) => {
-        set({ hasHydrated: hydrated });
-      },
-
       undo: () => {
         const { history, currentStrategyId } = get();
         if (history.past.length === 0) return;
@@ -257,9 +250,6 @@ export const useStrategyStore = create<StrategyStore>()(
     }),
     {
       name: 'strategy-storage',
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
-      },
     }
   )
 );
