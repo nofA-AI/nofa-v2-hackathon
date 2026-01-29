@@ -789,7 +789,7 @@ function ChatMessageBubble({
           <div
             className={cn(
               'text-sm break-words',
-              isUser ? 'text-primary-foreground whitespace-pre' : 'prose prose-sm prose-slate max-w-none',
+              isUser ? 'text-primary-foreground whitespace-pre-line' : 'prose prose-sm prose-slate max-w-none',
             )}
           >
             {isUser ? textContent : <Streamdown plugins={{ code }}>{textContent}</Streamdown>}
