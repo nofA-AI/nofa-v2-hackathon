@@ -171,7 +171,7 @@ export function AIChatPanel({
   };
 
   useEffect(() => {
-    // scrollToBottom(true);
+    scrollToBottom(true);
     // Scroll code blocks to bottom for better UX with max-height
     setTimeout(() => {
       const codeBlocks = document.querySelectorAll(
@@ -191,7 +191,8 @@ export function AIChatPanel({
     if (stored.length) {
       setMessages(stored);
       // 区别页面刷新打开（延迟300ms）和切换策略打开（延迟50ms）
-      const delay = isMountedRef.current ? 0 : 300;
+      // const delay = isMountedRef.current ? 50 : 500;
+      const delay = 50;
       setTimeout(() => {
         scrollToBottom(false);
       }, delay);
@@ -409,7 +410,7 @@ export function AIChatPanel({
       </div>
 
       {/* Messages */}
-      <ScrollArea ref={scrollAreaRef} className="flex-1 min-h-0">
+      <ScrollArea ref={scrollAreaRef} className="scroll-area flex-1 min-h-0">
       {/* <StickToBottom
         resize="smooth"
         initial="instant"
@@ -538,58 +539,51 @@ function ChatMessageBubble({
   onSendMessage,
 }: ChatMessageBubbleProps) {
   const isUser = message.role === 'user';
-  const [extractedStrategy, setExtractedStrategy] =
-    useState<StrategyTree | null>(null);
-  const [isPreGenerated, setIsPreGenerated] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
   const strategyCardRef = useRef<HTMLDivElement>(null);
 
-  // Extract strategy from tool calls
-  useEffect(() => {
-    if (!isUser && message.parts) {
-      for (const part of message.parts) {
-        if (
-          part.type === 'tool-generateStrategyTree' ||
-          part.type === 'tool-updateStrategyTree' ||
-          part.type === 'tool-editStrategyTree'
-        ) {
-          try {
-            const toolResult = part as any;
-            const result =
-              typeof toolResult.output === 'string'
-                ? JSON.parse(toolResult.output)
-                : toolResult.output;
+  // Extract strategy from tool calls using useMemo
+  const { extractedStrategy, isPreGenerated } = React.useMemo(() => {
+    if (isUser || !message.parts) {
+      return { extractedStrategy: null, isPreGenerated: false };
+    }
 
-            if (result.success && result.strategyTree) {
-              setExtractedStrategy(result.strategyTree);
-              setIsPreGenerated(result.preGenerated);
-            } else if (result.success && result.updatedTree) {
-              setExtractedStrategy(result.updatedTree);
-              setIsPreGenerated(result.preGenerated);
-            }
-          } catch (e) {
-            // Ignore parsing errors
+    for (const part of message.parts) {
+      if (
+        part.type === 'tool-generateStrategyTree' ||
+        part.type === 'tool-updateStrategyTree' ||
+        part.type === 'tool-editStrategyTree'
+      ) {
+        try {
+          const toolResult = part as any;
+          const result =
+            typeof toolResult.output === 'string'
+              ? JSON.parse(toolResult.output)
+              : toolResult.output;
+
+          if (result.success && result.strategyTree) {
+            return {
+              extractedStrategy: result.strategyTree,
+              isPreGenerated: result.preGenerated || false,
+            };
+          } else if (result.success && result.updatedTree) {
+            return {
+              extractedStrategy: result.updatedTree,
+              isPreGenerated: result.preGenerated || false,
+            };
           }
+        } catch (e) {
+          // Ignore parsing errors
         }
       }
     }
+
+    return { extractedStrategy: null, isPreGenerated: false };
   }, [message.parts, isUser]);
 
   useEffect(() => {
     setHasApplied(false);
   }, [extractedStrategy]);
-
-  // Scroll to strategy card when it appears
-  useEffect(() => {
-    if (extractedStrategy && strategyCardRef.current && !isGeneratingResponse) {
-      const scrollArea = strategyCardRef.current?.closest(
-        '[data-radix-scroll-area-viewport]',
-      ) as HTMLElement;
-      if (scrollArea) {
-        scrollArea.scrollTop += 400;
-      }
-    }
-  }, [extractedStrategy, isGeneratingResponse]);
 
   // Get text content from message parts
   const getTextContent = () => {
