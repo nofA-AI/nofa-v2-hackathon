@@ -290,7 +290,7 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
         <div className="flex items-center justify-between p-3 border-b border-border h-[49px]">
           <h2 className="font-medium text-sm flex items-center gap-2">
             <Sparkle className="w-4 h-4 text-primary" weight="fill" />
-            AI Assistant
+            Strategy AI
           </h2>
         </div>
         <div className="flex-1 flex items-center justify-center p-4">
@@ -308,7 +308,7 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
       <div className="flex items-center justify-between p-3 border-b border-border flex-shrink-0 h-[49px]">
         <h2 className="font-medium text-sm flex items-center gap-2">
           <Sparkle className="w-4 h-4 text-primary" weight="fill" />
-          AI Assistant
+          Strategy AI
         </h2>
         {/* Model Selector */}
         <select
