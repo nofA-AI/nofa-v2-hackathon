@@ -3,7 +3,7 @@
 import React from "react"
 
 import { useState, useRef, useEffect } from 'react';
-import { PaperPlaneTilt, Sparkle, Lightning, Lightbulb, ChartLine, Play } from '@phosphor-icons/react';
+import { PaperPlaneTilt, Sparkle, Lightning, Lightbulb, ChartLine, Play, Stop } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -409,7 +409,11 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
             onClick={() => isGeneratingResponse ? stop() : handleSend()}
             disabled={!input.trim() && !isGeneratingResponse}
           >
-            <PaperPlaneTilt className="w-4 h-4" weight="bold" />
+            {isGeneratingResponse ? (
+              <Stop className="w-4 h-4" weight="bold" />
+            ) : (
+              <PaperPlaneTilt className="w-4 h-4" weight="bold" />
+            )}
           </Button>
         </div>
       </div>
