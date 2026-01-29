@@ -95,8 +95,8 @@ export function AIChatPanel({
 
   const { messages, setMessages, sendMessage, status, stop } = useChat({
     id: currentStrategyId || 'default',
-    onError: () => {
-      toast.error('An error occurred, please try again!');
+    onError: (event: any) => {
+      toast.error(event?.message ?? 'An error occurred, please try again!');
 
       // Find the last user message to restore
       let lastUserMessage = null;

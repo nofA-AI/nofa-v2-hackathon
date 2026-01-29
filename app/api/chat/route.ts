@@ -438,7 +438,17 @@ When generating or editing strategies:
     sendReasoning: true,
     onError: (event: any) => {
       console.error('Error in strategy tree generation/editing:', event);
-      return `An error occurred, please try again!`;
+
+      // Extract error message from various possible structures
+      let errorMessage = 'An error occurred, please try again!';
+
+      if (event?.message) {
+        errorMessage = event.message;
+      } else if (event?.error?.message) {
+        errorMessage = event.error.message;
+      }
+
+      return errorMessage;
     },
   });
 }
