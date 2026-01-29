@@ -28,6 +28,11 @@ import dayjs from 'dayjs';
 import './streamdown.css';
 import { code } from './code';
 import { StickToBottom } from 'use-stick-to-bottom';
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from '@/components/ai-elements/reasoning';
 
 interface AIChatPanelProps {
   width?: number;
@@ -602,6 +607,21 @@ function ChatMessageBubble({
   };
 
   const textContent = getTextContent();
+
+  // Extract reasoning content from message parts
+  const reasoningContent = React.useMemo(() => {
+    if (isUser || !message.parts) return '';
+
+    for (const part of message.parts) {
+      if (part.type === 'reasoning' || (part as any).type === 'reasoning') {
+        const reasoningPart = part as any;
+        return reasoningPart.text || reasoningPart.content || '';
+      }
+    }
+
+    return '';
+  }, [message.parts, isUser]);
+
   const fileParts = React.useMemo(() => {
     const files: Array<{
       url?: string;
@@ -693,6 +713,16 @@ function ChatMessageBubble({
             : (newsParts.length === 0 ? 'flex-1 bg-muted' : ''),
         )}
       >
+        {/* Reasoning Display */}
+        {/* {!isUser && reasoningContent && (
+          <div className="mb-3">
+            <Reasoning className="w-full" isStreaming={isGeneratingResponse}>
+              <ReasoningTrigger />
+              <ReasoningContent>{reasoningContent}</ReasoningContent>
+            </Reasoning>
+          </div>
+        )} */}
+
         {newsParts.length > 0 && (
           <div className={cn('space-y-3', textContent || fileParts.length > 0 ? 'mb-3' : '')}>
             {newsParts.map((news, index) => (
