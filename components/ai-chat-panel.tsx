@@ -98,13 +98,23 @@ export function AIChatPanel({
     onError: () => {
       toast.error('An error occurred, please try again!');
 
-      // Get the last user message to restore
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage && lastMessage.role === 'user') {
+      // Find the last user message to restore
+      let lastUserMessage = null;
+      let lastUserMessageIndex = -1;
+
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role === 'user') {
+          lastUserMessage = messages[i];
+          lastUserMessageIndex = i;
+          break;
+        }
+      }
+
+      if (lastUserMessage) {
         // Extract text content from the message
         let textContent = '';
-        if (lastMessage.parts) {
-          for (const part of lastMessage.parts) {
+        if (lastUserMessage.parts) {
+          for (const part of lastUserMessage.parts) {
             if (part.type === 'text') {
               textContent += (part as any).text ?? '';
             }
@@ -116,8 +126,9 @@ export function AIChatPanel({
           setInput(textContent.trim());
         }
 
-        // Remove the last message
-        setMessages(messages.slice(0, -1));
+        // Remove all messages from the last user message onwards
+        // This includes the user message and any incomplete assistant responses
+        setMessages(messages.slice(0, lastUserMessageIndex));
       }
     },
   });
@@ -225,6 +236,11 @@ export function AIChatPanel({
     );
 
     setInput('');
+
+    // Scroll to bottom after sending message
+    setTimeout(() => {
+      scrollToBottom(true)
+    })
   };
 
   useEffect(() => {
