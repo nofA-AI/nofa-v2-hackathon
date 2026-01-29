@@ -223,7 +223,7 @@ export function GuideView({
           </div>
 
           {/* Happening Now Section */}
-          <div className="w-full mb-8">
+          <div className="w-full mb-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Zap className="w-5 h-5 text-primary" />
@@ -239,7 +239,7 @@ export function GuideView({
               </div>
             </div>
 
-            <div className="overflow-x-auto pb-1">
+            <div className="overflow-x-auto pb-4">
               <div className="flex gap-4 min-w-max">
                 {loading
                   ? Array.from({ length: 4 }).map((_, index) => (
