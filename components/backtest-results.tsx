@@ -342,6 +342,7 @@ interface PerformanceChartProps {
 
 function PerformanceChart({ data, benchmarkData }: PerformanceChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
+  const [showMarket, setShowMarket] = useState(false);
 
   useEffect(() => {
     if (!chartRef.current || data.length === 0 || !benchmarkData || benchmarkData.length === 0) return;
@@ -392,17 +393,17 @@ function PerformanceChart({ data, benchmarkData }: PerformanceChartProps) {
             ]),
           },
         },
-        {
+        ...(showMarket ? [{
           name: 'Market',
           data: benchmarkData.map((d) => d.value),
           type: 'line',
           smooth: true,
           showSymbol: false,
           lineStyle: { color: '#6b7280', width: 2, type: 'dashed' },
-        },
+        }] : []),
       ],
       legend: {
-        data: ['Strategy', 'Market'],
+        data: showMarket ? ['Strategy', 'Market'] : ['Strategy'],
         bottom: 0,
         textStyle: { color: '#6b7280', fontSize: 11 },
       },
@@ -429,8 +430,23 @@ function PerformanceChart({ data, benchmarkData }: PerformanceChartProps) {
       window.removeEventListener('resize', handleResize);
       chart.dispose();
     };
-  }, [data]);
+  }, [data, showMarket]);
 
-  return <div ref={chartRef} className="w-full h-64" />;
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors hidden">
+          <input
+            type="checkbox"
+            checked={showMarket}
+            onChange={(e) => setShowMarket(e.target.checked)}
+            className="w-4 h-4 rounded border border-input"
+          />
+          Show Market Benchmark
+        </label>
+      </div>
+      <div ref={chartRef} className="w-full h-64" />
+    </div>
+  );
 }
 
