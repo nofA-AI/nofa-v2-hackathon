@@ -3,10 +3,10 @@
 import React from "react"
 
 import { useState, useRef, useEffect } from 'react';
-import { PaperPlaneTilt, Sparkle, Lightning, Lightbulb, ChartLine, Play, Stop } from '@phosphor-icons/react';
+import { Sparkle, Lightning, Lightbulb, ChartLine, Play } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { AIChatInput } from '@/components/ai-chat-input';
+import type { PromptInputMessage } from '@/components/ai-elements/prompt-input';
 import { cn } from '@/lib/utils';
 import { useStrategyStore } from '@/lib/store/strategy-store';
 import { StrategyTree, BacktestParams } from '@/lib/types/strategy';
@@ -20,7 +20,7 @@ import { runBacktest } from '@/lib/backtest';
 import dayjs from 'dayjs';
 import './streamdown.css';
 import { code } from "./code";
-import { StickToBottom, useStickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
+import { StickToBottom } from 'use-stick-to-bottom';
 
 interface AIChatPanelProps {
   width?: number;
@@ -79,8 +79,6 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
     slippage: 0.001,
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(false);
 
   const { currentStrategyId, updateStrategyTree, addBacktestResult } = useStrategyStore();
@@ -166,13 +164,20 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
     }
   }, [messages, storageKey]);
 
-  const handleSend = async (messageText?: string) => {
-    const text = messageText || input.trim();
-    if (!text || !currentStrategyId || isGeneratingResponse) return;
+  const handleSend = async (message?: PromptInputMessage | string) => {
+    const isPromptMessage = typeof message !== 'string' && message !== undefined;
+    const text = isPromptMessage
+      ? (message.text ?? '').trim()
+      : (message ?? input).trim();
+    const files = isPromptMessage ? message.files : undefined;
+    const hasFiles = Boolean(files?.length);
+
+    if ((!text && !hasFiles) || !currentStrategyId || isGeneratingResponse) return;
 
     sendMessage(
       {
         text,
+        files,
       },
       {
         body: {
@@ -279,13 +284,6 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
   if (!currentStrategyId) {
     return (
       <div className="flex-1 bg-card flex flex-col">
@@ -312,18 +310,6 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
           <Sparkle className="w-4 h-4 text-primary" weight="fill" />
           Strategy AI
         </h2>
-        {/* Model Selector */}
-        <select
-          className="text-xs px-2 py-1 rounded border border-border bg-background"
-          value={selectedModelId}
-          onChange={(e) => setSelectedModelId(e.target.value as modelID)}
-        >
-          {Object.entries(models).map(([id, name]) => (
-            <option key={id} value={id}>
-              {name}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Messages */}
@@ -400,29 +386,20 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
 
       {/* Input */}
       <div className="p-3 border-t border-border flex-shrink-0">
-        <div className="relative">
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Describe your strategy..."
-            className="min-h-[80px] pr-12 resize-none"
-            disabled={isGeneratingResponse}
-          />
-          <Button
-            size="icon"
-            className="absolute bottom-[13px] right-2 h-8 w-8"
-            onClick={() => isGeneratingResponse ? stop() : handleSend()}
-            disabled={!input.trim() && !isGeneratingResponse}
-          >
-            {isGeneratingResponse ? (
-              <Stop className="w-4 h-4" weight="bold" />
-            ) : (
-              <PaperPlaneTilt className="w-4 h-4" weight="bold" />
-            )}
-          </Button>
-        </div>
+        <AIChatInput
+          value={input}
+          onChange={setInput}
+          onSubmitMessage={(message) => handleSend(message)}
+          status={status}
+          onStop={stop}
+          textareaDisabled={isGeneratingResponse}
+          selectedModelId={selectedModelId}
+          onModelChange={(id) => setSelectedModelId(id as modelID)}
+          modelOptions={Object.entries(models).map(([id, name]) => ({
+            id,
+            name,
+          }))}
+        />
       </div>
 
       {/* Backtest Dialog */}
@@ -509,6 +486,24 @@ function ChatMessageBubble({ message, onApplyStrategy, onOpenBacktestDialog, isG
   };
 
   const textContent = getTextContent();
+  const fileParts = React.useMemo(() => {
+    const files: Array<{ url?: string; mediaType?: string; filename?: string }> = [];
+    if (message.parts) {
+      for (const part of message.parts) {
+        if (part.type === 'file') {
+          const filePart = part as any;
+          if (filePart?.url) {
+            files.push({
+              url: filePart.url,
+              mediaType: filePart.mediaType,
+              filename: filePart.filename,
+            });
+          }
+        }
+      }
+    }
+    return files;
+  }, [message.parts]);
 
   const handleApply = () => {
     if (!extractedStrategy) return;
@@ -517,7 +512,7 @@ function ChatMessageBubble({ message, onApplyStrategy, onOpenBacktestDialog, isG
   };
 
   // Skip rendering entirely when there's no visible content to show
-  if (!textContent && (!extractedStrategy || isGeneratingResponse)) {
+  if (!textContent && fileParts.length === 0 && (!extractedStrategy || isGeneratingResponse)) {
     return null;
   }
 
@@ -535,6 +530,36 @@ function ChatMessageBubble({ message, onApplyStrategy, onOpenBacktestDialog, isG
           isUser ? 'bg-primary text-primary-foreground' : 'flex-1 bg-muted'
         )}
       >
+        {fileParts.length > 0 && (
+          <div className={cn('grid gap-2', textContent ? 'mb-2' : '')}>
+            {fileParts.map((file, index) => {
+              const isImage = file.mediaType?.startsWith('image/');
+              if (isImage) {
+                return (
+                  <img
+                    key={`${file.url}-${index}`}
+                    src={file.url}
+                    alt={file.filename ?? 'Image attachment'}
+                    className="max-h-64 w-auto max-w-full rounded-md border border-border object-contain"
+                  />
+                );
+              }
+
+              return (
+                <a
+                  key={`${file.url}-${index}`}
+                  href={file.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
+                >
+                  {file.filename ?? 'Attachment'}
+                </a>
+              );
+            })}
+          </div>
+        )}
+
         {textContent && (
           <div className={cn(
             'text-sm break-words prose prose-sm max-w-none',
