@@ -3,6 +3,15 @@ import { BacktestParams, BacktestResult, StrategyTree } from '@/lib/types/strate
 
 const BACKTEST_API_URL = 'https://backtest-server-staging.up.railway.app/api/v1/backtest/run';
 
+/**
+ * Convert frontend timeframe format to backend API format
+ * Backend expects: '1min', '5min', '15min', '1H', '4H', '1D'
+ */
+const convertTimeframe = (timeframe: string): string => {
+  // Backend expects the frontend format directly
+  return timeframe;
+};
+
 interface BacktestApiRequest {
   strategy: StrategyTree;
   capital: number;
@@ -43,19 +52,42 @@ export const runBacktest = async (
   strategyTree: StrategyTree,
   params: BacktestParams
 ): Promise<Omit<BacktestResult, 'id' | 'createdAt'>> => {
-  // Convert dates to ISO 8601 format
-  // const startTime = dayjs(params.startDate).toISOString();
-  // const endTime = dayjs(params.endDate).endOf('day').toISOString();
-  // TODO: Backend has time range limitation, using fixed dates temporarily
-  const startTime = "2025-12-01T00:00:00Z";
-  const endTime = "2025-12-31T00:00:00Z";
+  // Backend has time range limitation: 2025-01-01 to 2025-12-31
+  const minDate = dayjs('2025-01-01');
+  const maxDate = dayjs('2025-12-31');
+
+  // Clamp dates to valid range
+  let startDate = dayjs(params.startDate);
+  let endDate = dayjs(params.endDate);
+
+  if (startDate.isBefore(minDate)) {
+    startDate = minDate;
+  }
+  if (startDate.isAfter(maxDate)) {
+    startDate = maxDate;
+  }
+
+  if (endDate.isAfter(maxDate)) {
+    endDate = maxDate;
+  }
+  if (endDate.isBefore(minDate)) {
+    endDate = minDate;
+  }
+
+  // Ensure end date is not before start date
+  if (endDate.isBefore(startDate)) {
+    endDate = startDate;
+  }
+
+  const startTime = startDate.toISOString();
+  const endTime = endDate.endOf('day').toISOString();
 
   const requestBody: BacktestApiRequest = {
     strategy: strategyTree,
     capital: params.initialCapital,
     start_time: startTime,
     end_time: endTime,
-    timeframe: params.timeframe,
+    timeframe: convertTimeframe(params.timeframe),
     slippage: params.slippage,
     transaction_fee: params.tradingFee,
   };

@@ -15,7 +15,7 @@ import { AIChatInput } from '@/components/ai-chat-input';
 import type { PromptInputMessage } from '@/components/ai-elements/prompt-input';
 import { cn } from '@/lib/utils';
 import { useStrategyStore } from '@/lib/store/strategy-store';
-import { StrategyTree, BacktestParams } from '@/lib/types/strategy';
+import { StrategyTree, BacktestParams, DEFAULT_BACKTEST_PARAMS } from '@/lib/types/strategy';
 import { Streamdown } from 'streamdown';
 import { useChat } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
@@ -84,14 +84,7 @@ export function AIChatPanel({
   const [isReasoningEnabled, setIsReasoningEnabled] = useState<boolean>(false);
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
   const [isRunningBacktest, setIsRunningBacktest] = useState(false);
-  const [backtestParams, setBacktestParams] = useState<BacktestParams>({
-    startDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD'),
-    initialCapital: 10000,
-    tradingFee: 0.0005,
-    timeframe: '1H',
-    slippage: 0.001,
-  });
+  const [backtestParams, setBacktestParams] = useState<BacktestParams>(DEFAULT_BACKTEST_PARAMS);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(false);
 
@@ -104,6 +97,28 @@ export function AIChatPanel({
     id: currentStrategyId || 'default',
     onError: () => {
       toast.error('An error occurred, please try again!');
+
+      // Get the last user message to restore
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.role === 'user') {
+        // Extract text content from the message
+        let textContent = '';
+        if (lastMessage.parts) {
+          for (const part of lastMessage.parts) {
+            if (part.type === 'text') {
+              textContent += (part as any).text ?? '';
+            }
+          }
+        }
+
+        // Restore text to input
+        if (textContent.trim()) {
+          setInput(textContent.trim());
+        }
+
+        // Remove the last message
+        setMessages(messages.slice(0, -1));
+      }
     },
   });
 
@@ -214,12 +229,43 @@ export function AIChatPanel({
 
   useEffect(() => {
     const handleGuideSubmit = (event: Event) => {
-      const detail = (event as CustomEvent<{ text?: string }>).detail;
+      const detail = (event as CustomEvent<{ text?: string; title?: string; content?: string }>).detail;
       const text = detail?.text?.trim();
-      if (!text || !currentStrategyId || isGeneratingResponse) return;
+      const title = detail?.title?.trim();
+      const content = detail?.content?.trim();
+
+      if ((!text && !title && !content) || !currentStrategyId || isGeneratingResponse) return;
+
+      // If title and content provided, create a news part
+      if (title && content) {
+        const parts: any[] = [
+          {
+            type: 'tool-news',
+            toolCallId: `call_${Date.now()}`,
+            state: 'output-available',
+            input: {
+              summary: 'news card from guide',
+            },
+            output: {
+              title,
+              content,
+            }
+          },
+        ];
+
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          {
+            id: `user-${Date.now()}`,
+            role: 'user',
+            parts,
+          } as UIMessage,
+        ]);
+        return;
+      }
 
       sendMessage(
-        { text },
+        { text: text || '' },
         {
           body: {
             selectedModelId,
@@ -400,6 +446,7 @@ export function AIChatPanel({
                 onApplyStrategy={handleApplyStrategy}
                 onOpenBacktestDialog={() => setBacktestDialogOpen(true)}
                 isGeneratingResponse={isGeneratingResponse}
+                onSendMessage={handleSend}
               />
             ))
           )}
@@ -464,6 +511,7 @@ interface ChatMessageBubbleProps {
   onApplyStrategy: (strategy: StrategyTree) => void;
   onOpenBacktestDialog?: () => void;
   isGeneratingResponse?: boolean;
+  onSendMessage: (message: PromptInputMessage | string) => void;
 }
 
 function ChatMessageBubble({
@@ -471,6 +519,7 @@ function ChatMessageBubble({
   onApplyStrategy,
   onOpenBacktestDialog,
   isGeneratingResponse,
+  onSendMessage,
 }: ChatMessageBubbleProps) {
   const isUser = message.role === 'user';
   const [extractedStrategy, setExtractedStrategy] =
@@ -566,6 +615,37 @@ function ChatMessageBubble({
     return files;
   }, [message.parts]);
 
+  const newsParts = React.useMemo(() => {
+    const news: Array<{ title?: string; content?: string }> = [];
+    if (message.parts) {
+      for (const part of message.parts) {
+        if ((part as any).type === 'tool-news') {
+          const newsPart = part as any;
+          const output = newsPart?.output;
+          if (output?.title || output?.content) {
+            news.push({
+              title: output.title,
+              content: output.content,
+            });
+          }
+        }
+      }
+    }
+    return news;
+  }, [message.parts]);
+
+  const handleAnalyzeNews = (title: string, content: string) => {
+    onSendMessage(`Analyze this news: ${title}\n\n${content}`);
+  };
+
+  const handleSearchRelatedNews = (title: string) => {
+    onSendMessage(`Search for related news about: ${title}`);
+  };
+
+  const handleGenerateStrategy = (title: string, content: string) => {
+    onSendMessage(`Based on this news \n\n${title} \n\n ${content}\n\nGenerate a trading strategy`);
+  };
+
   const handleApply = () => {
     if (!extractedStrategy) return;
     onApplyStrategy(extractedStrategy);
@@ -576,6 +656,7 @@ function ChatMessageBubble({
   if (
     !textContent &&
     fileParts.length === 0 &&
+    newsParts.length === 0 &&
     (!extractedStrategy || isGeneratingResponse)
   ) {
     return null;
@@ -595,10 +676,69 @@ function ChatMessageBubble({
 
       <div
         className={cn(
-          'min-w-0 p-3 rounded-lg',
-          isUser ? 'bg-primary text-primary-foreground' : 'flex-1 bg-muted',
+          'min-w-0 rounded-lg',
+          newsParts.length === 0 && 'p-3',
+          isUser
+            ? 'bg-primary text-primary-foreground'
+            : (newsParts.length === 0 ? 'flex-1 bg-muted' : ''),
         )}
       >
+        {newsParts.length > 0 && (
+          <div className={cn('space-y-3', textContent || fileParts.length > 0 ? 'mb-3' : '')}>
+            {newsParts.map((news, index) => (
+              <div
+                key={index}
+                className="border border-border rounded-lg p-3 bg-card space-y-2"
+                data-news-title={news.title}
+                data-news-content={news.content}
+              >
+                {news.title && (
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {news.title}
+                  </h3>
+                )}
+                {news.content && (
+                  <p className="text-xs text-muted-foreground line-clamp-4">
+                    {news.content}
+                  </p>
+                )}
+                <div className="flex flex-col gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-xs text-foreground"
+                    onClick={() =>
+                      handleAnalyzeNews(news.title || '', news.content || '')
+                    }
+                  >
+                    Analyze News
+                  </Button>
+                  {/* <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-xs text-foreground"
+                    onClick={() =>
+                      handleSearchRelatedNews(news.title || '')
+                    }
+                  >
+                    Search Related News
+                  </Button> */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-xs text-foreground"
+                    onClick={() =>
+                      handleGenerateStrategy(news.title || '', news.content || '')
+                    }
+                  >
+                    Generate Strategy
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {fileParts.length > 0 && (
           <div className={cn('grid gap-2', textContent ? 'mb-2' : '')}>
             {fileParts.map((file, index) => {

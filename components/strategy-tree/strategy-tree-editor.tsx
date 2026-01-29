@@ -36,6 +36,7 @@ import {
   AVAILABLE_INDICATORS,
   BacktestParams,
   BacktestResult,
+  DEFAULT_BACKTEST_PARAMS,
 } from '@/lib/types/strategy';
 import { RiskManagementNode } from './nodes/risk-management-node';
 import { IfElseBlockNode } from './nodes/if-else-block-node';
@@ -62,14 +63,7 @@ export function StrategyTreeEditor({ onCreateWithAI, onSwitchToBacktest }: Strat
   const [isRunningBacktest, setIsRunningBacktest] = useState(false);
   const [jsonInput, setJsonInput] = useState('');
   const [jsonError, setJsonError] = useState('');
-  const [backtestParams, setBacktestParams] = useState<BacktestParams>({
-    startDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD'),
-    initialCapital: 10000,
-    tradingFee: 0.0005,
-    timeframe: '1H',
-    slippage: 0.001,
-  });
+  const [backtestParams, setBacktestParams] = useState<BacktestParams>(DEFAULT_BACKTEST_PARAMS);
 
   // Check if strategy is valid for backtesting
   const mainDecision = Array.isArray(strategyTree.mainDecision)

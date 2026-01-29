@@ -140,6 +140,16 @@ export interface BacktestParams {
   slippage: number;
 }
 
+/** Default backtest parameters */
+export const DEFAULT_BACKTEST_PARAMS: BacktestParams = {
+  startDate: new Date(new Date().setDate(new Date().getDate() - 90)).toISOString().split('T')[0],
+  endDate: new Date().toISOString().split('T')[0],
+  initialCapital: 10000,
+  tradingFee: 0.0005,
+  timeframe: '1H',
+  slippage: 0.001,
+};
+
 /** Backtest result */
 export interface BacktestResult {
   id: string;

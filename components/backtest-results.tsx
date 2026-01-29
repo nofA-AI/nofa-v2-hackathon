@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { useStrategyStore } from '@/lib/store/strategy-store';
-import { BacktestParams, BacktestResult } from '@/lib/types/strategy';
+import { BacktestParams, BacktestResult, DEFAULT_BACKTEST_PARAMS } from '@/lib/types/strategy';
 import { runBacktest as runBacktestAPI } from '@/lib/backtest';
 import { BacktestDialog } from '@/components/backtest-dialog';
 import * as echarts from 'echarts';
@@ -37,14 +37,7 @@ interface BacktestResultsProps {
 export function BacktestResults({ onReadyToRunBacktest }: BacktestResultsProps) {
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
-  const [backtestParams, setBacktestParams] = useState<BacktestParams>({
-    startDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD'),
-    initialCapital: 10000,
-    tradingFee: 0.0005,
-    timeframe: '1H',
-    slippage: 0.001,
-  });
+  const [backtestParams, setBacktestParams] = useState<BacktestParams>(DEFAULT_BACKTEST_PARAMS);
 
   const { currentStrategyId, backtestResults, addBacktestResult, history } =
     useStrategyStore();

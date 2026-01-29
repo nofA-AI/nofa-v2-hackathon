@@ -189,10 +189,13 @@ export function GuideView({
   };
 
   const handleNewsCardClick = (news: NewsItem) => {
-    const text =
-      `Analyze this news and generate a strategy:\n\nTitle: ${news.title}\n\nContent: ${news.content}`.trim();
     window.dispatchEvent(
-      new CustomEvent('guide-chat-submit', { detail: { text } }),
+      new CustomEvent('guide-chat-submit', {
+        detail: {
+          title: news.title,
+          content: news.content
+        }
+      }),
     );
     onNewsClick(news);
     onStartChat();

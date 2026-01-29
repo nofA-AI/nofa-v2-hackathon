@@ -89,7 +89,7 @@ export function BacktestDialog({
                 <option value="1m">1 Minute</option>
                 <option value="5m">5 Minutes</option>
                 <option value="15m">15 Minutes</option>
-                <option value="30m">30 Minutes</option>
+                {/* <option value="30m">30 Minutes</option> */}
                 <option value="1H">1 Hour</option>
                 <option value="4H">4 Hours</option>
                 <option value="1D">1 Day</option>

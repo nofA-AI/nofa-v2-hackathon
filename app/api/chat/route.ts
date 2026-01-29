@@ -436,7 +436,8 @@ When generating or editing strategies:
 
   return stream.toUIMessageStreamResponse({
     sendReasoning: true,
-    onError: () => {
+    onError: (event: any) => {
+      console.error('Error in strategy tree generation/editing:', event);
       return `An error occurred, please try again!`;
     },
   });
