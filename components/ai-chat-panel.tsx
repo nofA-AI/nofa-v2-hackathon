@@ -417,7 +417,7 @@ export function AIChatPanel({
         initial="instant"
         className="scroll-area-wrapper flex-1 min-h-0"
       >
-        <StickToBottom.Content className="p-3 space-y-4">
+        <StickToBottom.Content className="p-3 space-y-4" scrollClassName="!overflow-x-hidden">
           {messages.length === 0 ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
@@ -788,11 +788,11 @@ function ChatMessageBubble({
         {textContent && (
           <div
             className={cn(
-              'text-sm break-words prose prose-sm max-w-none',
-              isUser ? 'prose-invert' : 'prose-slate',
+              'text-sm break-words',
+              isUser ? 'text-primary-foreground whitespace-pre' : 'prose prose-sm prose-slate max-w-none',
             )}
           >
-            <Streamdown plugins={{ code }}>{textContent}</Streamdown>
+            {isUser ? textContent : <Streamdown plugins={{ code }}>{textContent}</Streamdown>}
           </div>
         )}
 

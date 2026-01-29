@@ -594,6 +594,11 @@ export function IfElseBlockNode({
                                 {sym}
                               </SelectItem>
                             ))}
+                            {condition.symbol && !AVAILABLE_SYMBOLS.includes(condition.symbol) && (
+                              <SelectItem value={condition.symbol}>
+                                {condition.symbol}
+                              </SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
