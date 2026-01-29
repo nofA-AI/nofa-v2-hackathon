@@ -24,7 +24,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useStrategyStore } from '@/lib/store/strategy-store';
 import { BacktestParams, BacktestResult } from '@/lib/types/strategy';
-import { mockRunBacktest } from '@/lib/backtest';
+import { runBacktest as runBacktestAPI } from '@/lib/backtest';
 import { BacktestDialog } from '@/components/backtest-dialog';
 import * as echarts from 'echarts';
 import dayjs from 'dayjs';
@@ -38,10 +38,12 @@ export function BacktestResults({ onReadyToRunBacktest }: BacktestResultsProps) 
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [backtestParams, setBacktestParams] = useState<BacktestParams>({
-    startDate: dayjs().subtract(90, 'day').format('YYYY-MM-DD'),
+    startDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
     endDate: dayjs().format('YYYY-MM-DD'),
     initialCapital: 10000,
-    tradingFee: 0.001,
+    tradingFee: 0.0005,
+    timeframe: '1H',
+    slippage: 0.001,
   });
 
   const { currentStrategyId, backtestResults, addBacktestResult, history } =
@@ -71,14 +73,14 @@ export function BacktestResults({ onReadyToRunBacktest }: BacktestResultsProps) 
     setBacktestDialogOpen(false);
 
     try {
-      const result = await mockRunBacktest(currentStrategyId, backtestParams);
+      const result = await runBacktestAPI(strategyTree, backtestParams);
       addBacktestResult(currentStrategyId, result);
     } catch (error) {
       console.error('Backtest failed:', error);
     } finally {
       setIsRunning(false);
     }
-  }, [currentStrategyId, isStrategyValid, backtestParams, addBacktestResult]);
+  }, [currentStrategyId, isStrategyValid, strategyTree, backtestParams, addBacktestResult]);
 
   useEffect(() => {
     if (onReadyToRunBacktest) {
@@ -197,7 +199,12 @@ export function BacktestResults({ onReadyToRunBacktest }: BacktestResultsProps) 
 
         {/* Performance Chart */}
         <div className="bg-card rounded-lg border border-border p-4">
-          <h3 className="text-sm font-medium mb-4">Performance Chart</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium">Portfolio Value Over Time</h3>
+            <div className="text-xs text-muted-foreground">
+              Initial: ${latestResult.params.initialCapital.toLocaleString()} | Final: ${(latestResult.params.initialCapital + (latestResult.performanceData[latestResult.performanceData.length - 1]?.value - latestResult.params.initialCapital || 0)).toLocaleString()}
+            </div>
+          </div>
           <PerformanceChart
             data={latestResult.performanceData}
             benchmarkData={latestResult.benchmarkData}
@@ -206,57 +213,79 @@ export function BacktestResults({ onReadyToRunBacktest }: BacktestResultsProps) 
 
         {/* Positions Table */}
         <div className="bg-card rounded-lg border border-border p-4">
-          <h3 className="text-sm font-medium mb-4">Position History</h3>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Symbol</TableHead>
-                <TableHead>Direction</TableHead>
-                <TableHead className="text-right">Entry</TableHead>
-                <TableHead className="text-right">Exit</TableHead>
-                <TableHead className="text-right">P&L</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {latestResult.positions.map((position, index) => (
-                <TableRow key={index}>
-                  <TableCell className="text-sm">{position.date}</TableCell>
-                  <TableCell className="text-sm font-medium">
-                    {position.symbol}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={cn(
-                        'text-xs font-semibold px-2 py-0.5 rounded',
-                        position.direction === 'LONG'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-red-100 text-red-700'
-                      )}
-                    >
-                      {position.direction}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right text-sm">
-                    ${position.entry.toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-right text-sm">
-                    ${position.exit.toLocaleString()}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      'text-right text-sm font-medium',
-                      position.pnl >= 0 ? 'text-emerald-600' : 'text-red-600'
-                    )}
-                  >
-                    {position.pnl >= 0 ? '+' : ''}${position.pnl.toLocaleString()} (
-                    {position.pnlPercent >= 0 ? '+' : ''}
-                    {position.pnlPercent.toFixed(2)}%)
-                  </TableCell>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium">Trade History</h3>
+            <span className="text-xs text-muted-foreground">
+              {latestResult.positions.length} {latestResult.positions.length === 1 ? 'trade' : 'trades'}
+            </span>
+          </div>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[100px]">Date</TableHead>
+                  <TableHead>Symbol</TableHead>
+                  <TableHead>Side</TableHead>
+                  <TableHead className="text-right">Entry Price</TableHead>
+                  <TableHead className="text-right">Exit Price</TableHead>
+                  <TableHead className="text-right">P&L (USD)</TableHead>
+                  <TableHead className="text-right">Return %</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {latestResult.positions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                      No trades executed during backtest period
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  latestResult.positions.map((position, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="text-sm font-mono">{position.date}</TableCell>
+                      <TableCell className="text-sm font-medium">
+                        {position.symbol}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={cn(
+                            'text-xs font-semibold px-2 py-0.5 rounded',
+                            position.direction === 'LONG'
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                          )}
+                        >
+                          {position.direction}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-mono">
+                        ${position.entry.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-mono">
+                        ${position.exit.toFixed(2)}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          'text-right text-sm font-medium font-mono',
+                          position.pnl >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                        )}
+                      >
+                        {position.pnl >= 0 ? '+' : ''}${Math.abs(position.pnl).toFixed(2)}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          'text-right text-sm font-medium font-mono',
+                          position.pnlPercent >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                        )}
+                      >
+                        {position.pnlPercent >= 0 ? '+' : ''}{position.pnlPercent.toFixed(2)}%
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
 
         {/* Rerun Button */}

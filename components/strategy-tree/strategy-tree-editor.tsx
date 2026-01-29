@@ -42,7 +42,7 @@ import { IfElseBlockNode } from './nodes/if-else-block-node';
 import { ActionBlockNode } from './nodes/action-block-node';
 import { AddBlockDropdown } from './add-block-dropdown';
 import { BacktestDialog } from '@/components/backtest-dialog';
-import { mockRunBacktest } from '@/lib/backtest';
+import { runBacktest } from '@/lib/backtest';
 import dayjs from 'dayjs';
 
 interface StrategyTreeEditorProps {
@@ -63,10 +63,12 @@ export function StrategyTreeEditor({ onCreateWithAI, onSwitchToBacktest }: Strat
   const [jsonInput, setJsonInput] = useState('');
   const [jsonError, setJsonError] = useState('');
   const [backtestParams, setBacktestParams] = useState<BacktestParams>({
-    startDate: dayjs().subtract(90, 'day').format('YYYY-MM-DD'),
+    startDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
     endDate: dayjs().format('YYYY-MM-DD'),
     initialCapital: 10000,
-    tradingFee: 0.001,
+    tradingFee: 0.0005,
+    timeframe: '1H',
+    slippage: 0.001,
   });
 
   // Check if strategy is valid for backtesting
@@ -85,7 +87,7 @@ export function StrategyTreeEditor({ onCreateWithAI, onSwitchToBacktest }: Strat
     setIsRunningBacktest(true);
 
     try {
-      const result = await mockRunBacktest(currentStrategyId, backtestParams);
+      const result = await runBacktest(strategyTree, backtestParams);
       addBacktestResult(currentStrategyId, result);
       setBacktestDialogOpen(false);
       toast.success('Backtest completed successfully!');

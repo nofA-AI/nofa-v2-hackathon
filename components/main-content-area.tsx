@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StrategyTreeEditor } from '@/components/strategy-tree/strategy-tree-editor';
 import { BacktestResults } from '@/components/backtest-results';
@@ -39,6 +39,13 @@ export function MainContentArea({ width, onResizeStart, onCreateWithAI, onSwitch
   if (onSwitchToBacktest) {
     onSwitchToBacktest(switchToBacktest);
   }
+
+  // Switch to editor tab when strategy changes
+  useEffect(() => {
+    if (currentStrategyId) {
+      setActiveTab('editor');
+    }
+  }, [currentStrategyId]);
 
   if (!currentStrategyId) {
     return (

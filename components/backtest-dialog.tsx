@@ -76,11 +76,46 @@ export function BacktestDialog({
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Timeframe</Label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                value={params.timeframe}
+                onChange={(e) =>
+                  onParamsChange({ ...params, timeframe: e.target.value })
+                }
+              >
+                <option value="1m">1 Minute</option>
+                <option value="5m">5 Minutes</option>
+                <option value="15m">15 Minutes</option>
+                <option value="30m">30 Minutes</option>
+                <option value="1H">1 Hour</option>
+                <option value="4H">4 Hours</option>
+                <option value="1D">1 Day</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Slippage (%)</Label>
+              <Input
+                type="number"
+                step="0.001"
+                value={params.slippage * 100}
+                onChange={(e) =>
+                  onParamsChange({
+                    ...params,
+                    slippage: Number(e.target.value) / 100,
+                  })
+                }
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label>Trading Fee (%)</Label>
             <Input
               type="number"
-              step="0.01"
+              step="0.001"
               value={params.tradingFee * 100}
               onChange={(e) =>
                 onParamsChange({

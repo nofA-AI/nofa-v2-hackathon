@@ -1,8 +1,168 @@
 import dayjs from 'dayjs';
-import { BacktestParams, BacktestResult } from '@/lib/types/strategy';
+import { BacktestParams, BacktestResult, StrategyTree } from '@/lib/types/strategy';
+
+const BACKTEST_API_URL = 'https://backtest-server-staging.up.railway.app/api/v1/backtest/run';
+
+interface BacktestApiRequest {
+  strategy: StrategyTree;
+  capital: number;
+  start_time: string;
+  end_time: string;
+  timeframe: string;
+  slippage: number;
+  transaction_fee: number;
+}
+
+interface BacktestApiResponse {
+  request_id: string;
+  strategy_name: string;
+  kpis: {
+    total_pnl: number;
+    max_drawdown_pct: number;
+    total_trades: number;
+    profitable_trades: number;
+    sharpe_ratio: number | null;
+  };
+  trades: Array<{
+    open_time: string;
+    close_time: string;
+    symbol: string;
+    direction: 'LONG' | 'SHORT';
+    position_size_usd: number;
+    position_size_token: number | null;
+    pnl: number;
+    cumulative_pnl: number;
+  }>;
+  execution_time_seconds: number;
+}
 
 /**
- * Mock backtest function that simulates strategy performance
+ * Run backtest using real API
+ */
+export const runBacktest = async (
+  strategyTree: StrategyTree,
+  params: BacktestParams
+): Promise<Omit<BacktestResult, 'id' | 'createdAt'>> => {
+  // Convert dates to ISO 8601 format
+  // const startTime = dayjs(params.startDate).toISOString();
+  // const endTime = dayjs(params.endDate).endOf('day').toISOString();
+  // TODO: Backend has time range limitation, using fixed dates temporarily
+  const startTime = "2025-12-01T00:00:00Z";
+  const endTime = "2025-12-31T00:00:00Z";
+
+  const requestBody: BacktestApiRequest = {
+    strategy: strategyTree,
+    capital: params.initialCapital,
+    start_time: startTime,
+    end_time: endTime,
+    timeframe: params.timeframe,
+    slippage: params.slippage,
+    transaction_fee: params.tradingFee,
+  };
+
+  try {
+    const response = await fetch(BACKTEST_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        `Backtest API error: ${response.status} ${response.statusText}. ${JSON.stringify(errorData)}`
+      );
+    }
+
+    const data: BacktestApiResponse = await response.json();
+
+    // Convert API response to our BacktestResult format
+    const initialCapital = params.initialCapital;
+    const finalCapital = initialCapital + data.kpis.total_pnl;
+    const totalReturn = (data.kpis.total_pnl / initialCapital) * 100;
+
+    // Generate performance data from trades
+    const performanceData: { date: string; value: number }[] = [];
+    let currentValue = initialCapital;
+
+    if (data.trades.length > 0) {
+      performanceData.push({
+        date: dayjs(params.startDate).format('YYYY-MM-DD'),
+        value: initialCapital,
+      });
+
+      data.trades.forEach((trade) => {
+        currentValue += trade.pnl;
+        performanceData.push({
+          date: dayjs(trade.close_time).format('YYYY-MM-DD'),
+          value: currentValue,
+        });
+      });
+    } else {
+      // No trades, flat performance
+      performanceData.push({
+        date: dayjs(params.startDate).format('YYYY-MM-DD'),
+        value: initialCapital,
+      });
+      performanceData.push({
+        date: dayjs(params.endDate).format('YYYY-MM-DD'),
+        value: initialCapital,
+      });
+    }
+
+    // Generate benchmark data (simple market performance)
+    const benchmarkData: { date: string; value: number }[] = [];
+    const days = dayjs(params.endDate).diff(dayjs(params.startDate), 'day');
+    let benchmarkValue = initialCapital;
+    for (let i = 0; i <= Math.min(days, 365); i += Math.max(1, Math.floor(days / 100))) {
+      const date = dayjs(params.startDate).add(i, 'day').format('YYYY-MM-DD');
+      const change = (Math.random() - 0.49) * 0.015;
+      benchmarkValue = benchmarkValue * (1 + change);
+      benchmarkData.push({ date, value: benchmarkValue });
+    }
+
+    // Convert trades to positions format
+    const positions = data.trades.map((trade) => ({
+      date: dayjs(trade.open_time).format('YYYY-MM-DD'),
+      symbol: trade.symbol,
+      direction: trade.direction,
+      entry: trade.position_size_usd / (trade.position_size_token || 1),
+      exit: (trade.position_size_usd + trade.pnl) / (trade.position_size_token || 1),
+      pnl: trade.pnl,
+      pnlPercent: (trade.pnl / trade.position_size_usd) * 100,
+    }));
+
+    // Calculate annualized return
+    const daysCount = dayjs(params.endDate).diff(dayjs(params.startDate), 'day') || 1;
+    const annualizedReturn = totalReturn * (365 / daysCount);
+
+    return {
+      strategyId: data.request_id,
+      params,
+      metrics: {
+        totalReturn,
+        annualizedReturn,
+        maxDrawdown: data.kpis.max_drawdown_pct,
+        sharpeRatio: data.kpis.sharpe_ratio || 0,
+        winRate: data.kpis.total_trades > 0
+          ? (data.kpis.profitable_trades / data.kpis.total_trades) * 100
+          : 0,
+        totalTrades: data.kpis.total_trades,
+      },
+      performanceData,
+      benchmarkData,
+      positions,
+    };
+  } catch (error) {
+    console.error('Backtest API error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Mock backtest function that simulates strategy performance (kept for fallback)
  */
 export const mockRunBacktest = async (
   strategyId: string,
@@ -96,3 +256,4 @@ export const mockRunBacktest = async (
     positions,
   };
 };
+

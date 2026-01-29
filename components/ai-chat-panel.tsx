@@ -16,7 +16,7 @@ import type { UIMessage } from 'ai';
 import { toast } from 'sonner';
 import { modelID, models } from '@/lib/models';
 import { BacktestDialog } from '@/components/backtest-dialog';
-import { mockRunBacktest } from '@/lib/backtest';
+import { runBacktest } from '@/lib/backtest';
 import dayjs from 'dayjs';
 import './streamdown.css';
 import { code } from "./code";
@@ -70,10 +70,12 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
   const [isRunningBacktest, setIsRunningBacktest] = useState(false);
   const [backtestParams, setBacktestParams] = useState<BacktestParams>({
-    startDate: dayjs().subtract(90, 'day').format('YYYY-MM-DD'),
+    startDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
     endDate: dayjs().format('YYYY-MM-DD'),
     initialCapital: 10000,
-    tradingFee: 0.001,
+    tradingFee: 0.0005,
+    timeframe: '1H',
+    slippage: 0.001,
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -252,10 +254,16 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
   const handleRunBacktest = async () => {
     if (!currentStrategyId) return;
 
+    const { strategyTree } = useStrategyStore.getState().strategies.find(
+      (s) => s.id === currentStrategyId
+    ) || {};
+
+    if (!strategyTree) return;
+
     setIsRunningBacktest(true);
 
     try {
-      const result = await mockRunBacktest(currentStrategyId, backtestParams);
+      const result = await runBacktest(strategyTree, backtestParams);
       addBacktestResult(currentStrategyId, result);
       toast.success('Backtest completed successfully!');
       setBacktestDialogOpen(false);

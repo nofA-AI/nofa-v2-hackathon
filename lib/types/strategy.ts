@@ -136,6 +136,8 @@ export interface BacktestParams {
   endDate: string;
   initialCapital: number;
   tradingFee: number;
+  timeframe: string;
+  slippage: number;
 }
 
 /** Backtest result */
