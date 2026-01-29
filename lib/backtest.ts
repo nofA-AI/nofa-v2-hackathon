@@ -5,11 +5,20 @@ const BACKTEST_API_URL = 'https://backtest-server-staging.up.railway.app/api/v1/
 
 /**
  * Convert frontend timeframe format to backend API format
- * Backend expects: '1min', '5min', '15min', '1H', '4H', '1D'
+ * Frontend: '1min', '5min', '15min', '1H', '4H', '1D'
+ * API uses CCXT standard timeframe format: `1m`, `5m`, `15m`, `1h`, `4h`, `1d` (lowercase)
  */
 const convertTimeframe = (timeframe: string): string => {
-  // Backend expects the frontend format directly
-  return timeframe;
+  const timeframeMap: Record<string, string> = {
+    '1min': '1m',
+    '5min': '5m',
+    '15min': '15m',
+    '1H': '1h',
+    '4H': '4h',
+    '1D': '1d',
+  };
+
+  return timeframeMap[timeframe] || timeframe;
 };
 
 interface BacktestApiRequest {
