@@ -1,16 +1,22 @@
 'use client';
 
-import React from "react"
+import React from 'react';
 
 import { useState, useRef, useEffect } from 'react';
-import { Sparkle, Lightning, Lightbulb, ChartLine, Play } from '@phosphor-icons/react';
+import {
+  Sparkle,
+  Lightning,
+  Lightbulb,
+  ChartLine,
+  Play,
+} from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { AIChatInput } from '@/components/ai-chat-input';
 import type { PromptInputMessage } from '@/components/ai-elements/prompt-input';
 import { cn } from '@/lib/utils';
 import { useStrategyStore } from '@/lib/store/strategy-store';
 import { StrategyTree, BacktestParams } from '@/lib/types/strategy';
-import { Streamdown } from "streamdown";
+import { Streamdown } from 'streamdown';
 import { useChat } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
 import { toast } from 'sonner';
@@ -19,7 +25,7 @@ import { BacktestDialog } from '@/components/backtest-dialog';
 import { runBacktest } from '@/lib/backtest';
 import dayjs from 'dayjs';
 import './streamdown.css';
-import { code } from "./code";
+import { code } from './code';
 import { StickToBottom } from 'use-stick-to-bottom';
 
 interface AIChatPanelProps {
@@ -40,17 +46,20 @@ const quickStartPrompts = [
     icon: ChartLine,
     title: 'RSI Strategy',
     description: 'Create a momentum-based strategy',
-    prompt: 'Create a strategy that shorts BTC when RSI is above 70 and longs when RSI is below 30',
+    prompt:
+      'Create a strategy that shorts BTC when RSI is above 70 and longs when RSI is below 30',
   },
   {
     icon: Lightbulb,
     title: 'EMA Crossover',
     description: 'Trend-following strategy example',
-    prompt: 'Create an EMA crossover strategy for ETH with 20 and 50 period EMAs',
+    prompt:
+      'Create an EMA crossover strategy for ETH with 20 and 50 period EMAs',
   },
 ];
 
-const getStorageKey = (strategyId?: string | null) => `aiChatMessages:${strategyId || 'default'}`;
+const getStorageKey = (strategyId?: string | null) =>
+  `aiChatMessages:${strategyId || 'default'}`;
 
 const loadStoredMessages = (storageKey: string): UIMessage[] => {
   if (typeof window === 'undefined') return [];
@@ -63,7 +72,12 @@ const loadStoredMessages = (storageKey: string): UIMessage[] => {
   }
 };
 
-export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToBacktest }: AIChatPanelProps) {
+export function AIChatPanel({
+  width,
+  onApplyStrategy,
+  onRunBacktest,
+  onSwitchToBacktest,
+}: AIChatPanelProps) {
   const [input, setInput] = useState('');
 
   const [selectedModelId, setSelectedModelId] = useState<modelID>('gpt-5.2');
@@ -81,7 +95,8 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(false);
 
-  const { currentStrategyId, updateStrategyTree, addBacktestResult } = useStrategyStore();
+  const { currentStrategyId, updateStrategyTree, addBacktestResult } =
+    useStrategyStore();
 
   const storageKey = getStorageKey(currentStrategyId);
 
@@ -96,7 +111,8 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
 
   const assistantHasVisibleContent = React.useMemo(() => {
     const lastMessage = messages[messages.length - 1];
-    if (!lastMessage || lastMessage.role !== 'assistant' || !lastMessage.parts) return false;
+    if (!lastMessage || lastMessage.role !== 'assistant' || !lastMessage.parts)
+      return false;
 
     let text = '';
     for (const part of lastMessage.parts) {
@@ -113,7 +129,9 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     } else {
       // const scrollArea = document.querySelector('.scroll-area [data-radix-scroll-area-viewport]') as HTMLElement;
-      const scrollArea = document.querySelector('.scroll-area-wrapper > div') as HTMLElement;
+      const scrollArea = document.querySelector(
+        '.scroll-area-wrapper > div',
+      ) as HTMLElement;
       if (scrollArea) {
         // Wait for DOM to be fully rendered before scrolling
         requestAnimationFrame(() => {
@@ -127,8 +145,10 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
     // scrollToBottom(true);
     // Scroll code blocks to bottom for better UX with max-height
     setTimeout(() => {
-      const codeBlocks = document.querySelectorAll('[data-streamdown="code-block-body"]');
-      codeBlocks.forEach(block => {
+      const codeBlocks = document.querySelectorAll(
+        '[data-streamdown="code-block-body"]',
+      );
+      codeBlocks.forEach((block) => {
         (block as HTMLElement).scrollTop = (block as HTMLElement).scrollHeight;
       });
     }, 50);
@@ -165,14 +185,16 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
   }, [messages, storageKey]);
 
   const handleSend = async (message?: PromptInputMessage | string) => {
-    const isPromptMessage = typeof message !== 'string' && message !== undefined;
+    const isPromptMessage =
+      typeof message !== 'string' && message !== undefined;
     const text = isPromptMessage
       ? (message.text ?? '').trim()
       : (message ?? input).trim();
     const files = isPromptMessage ? message.files : undefined;
     const hasFiles = Boolean(files?.length);
 
-    if ((!text && !hasFiles) || !currentStrategyId || isGeneratingResponse) return;
+    if ((!text && !hasFiles) || !currentStrategyId || isGeneratingResponse)
+      return;
 
     sendMessage(
       {
@@ -184,7 +206,7 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
           selectedModelId,
           isReasoningEnabled,
         },
-      }
+      },
     );
 
     setInput('');
@@ -203,20 +225,20 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
             selectedModelId,
             isReasoningEnabled,
           },
-        }
+        },
       );
     };
 
     const handleStrategyApplied = (event: Event) => {
-      const detail = (event as CustomEvent<{ message?: string; strategyJson?: any }>).detail;
+      const detail = (
+        event as CustomEvent<{ message?: string; strategyJson?: any }>
+      ).detail;
       const message = detail?.message?.trim();
       const strategyJson = detail?.strategyJson;
       if (!message || !currentStrategyId) return;
 
       // Add mock assistant message to chat
-      const parts: any[] = [
-        { type: 'text', text: message },
-      ];
+      const parts: any[] = [{ type: 'text', text: message }];
 
       if (strategyJson) {
         parts.push({
@@ -248,9 +270,19 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
     window.addEventListener('guide-strategy-applied', handleStrategyApplied);
     return () => {
       window.removeEventListener('guide-chat-submit', handleGuideSubmit);
-      window.removeEventListener('guide-strategy-applied', handleStrategyApplied);
+      window.removeEventListener(
+        'guide-strategy-applied',
+        handleStrategyApplied,
+      );
     };
-  }, [currentStrategyId, isGeneratingResponse, isReasoningEnabled, selectedModelId, sendMessage, setMessages]);
+  }, [
+    currentStrategyId,
+    isGeneratingResponse,
+    isReasoningEnabled,
+    selectedModelId,
+    sendMessage,
+    setMessages,
+  ]);
 
   const handleApplyStrategy = (strategy: StrategyTree) => {
     updateStrategyTree(strategy);
@@ -261,9 +293,10 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
   const handleRunBacktest = async () => {
     if (!currentStrategyId) return;
 
-    const { strategyTree } = useStrategyStore.getState().strategies.find(
-      (s) => s.id === currentStrategyId
-    ) || {};
+    const { strategyTree } =
+      useStrategyStore
+        .getState()
+        .strategies.find((s) => s.id === currentStrategyId) || {};
 
     if (!strategyTree) return;
 
@@ -303,7 +336,10 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
   }
 
   return (
-    <div className="flex-1 bg-card flex flex-col min-h-0 overflow-hidden relative" style={width ? { flex: `0 0 ${width}%` } : {}}>
+    <div
+      className="flex-1 bg-card flex flex-col min-h-0 overflow-hidden relative"
+      style={width ? { flex: `0 0 ${width}%` } : {}}
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-border flex-shrink-0 h-[49px]">
         <h2 className="font-medium text-sm flex items-center gap-2">
@@ -314,16 +350,17 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
 
       {/* Messages */}
       {/* <ScrollArea ref={scrollAreaRef} className="flex-1 min-h-0"> */}
-        <StickToBottom
-          resize="smooth" initial="instant"
-          className="scroll-area-wrapper flex-1 min-h-0"
-        >
+      <StickToBottom
+        resize="smooth"
+        initial="instant"
+        className="scroll-area-wrapper flex-1 min-h-0"
+      >
         <StickToBottom.Content className="p-3 space-y-4">
           {messages.length === 0 ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Describe your trading strategy in natural language and I'll help you
-                build it.
+                Describe your trading strategy in natural language and I'll help
+                you build it.
               </p>
 
               <div className="space-y-2">
@@ -339,7 +376,10 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <prompt.icon className="w-4 h-4 text-primary" weight="bold" />
+                        <prompt.icon
+                          className="w-4 h-4 text-primary"
+                          weight="bold"
+                        />
                       </div>
                       <div>
                         <p className="text-sm font-medium">{prompt.title}</p>
@@ -366,8 +406,12 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
 
           {isGeneratingResponse && !assistantHasVisibleContent && (
             <div className="flex items-start gap-2">
-              <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                <Sparkle className="w-3 h-3 text-primary-foreground" weight="fill" />
+              <div className="w-6 h-6 rounded-[6px] bg-primary flex items-center justify-center flex-shrink-0">
+                <img
+                  src="/favicon.png"
+                  alt="AI"
+                  className="w-[19px] h-[19px] brightness-0 invert"
+                />
               </div>
               <div className="flex-1 p-3 rounded-lg bg-muted">
                 <div className="flex py-1 items-center gap-1">
@@ -381,7 +425,7 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
 
           <div ref={messagesEndRef} className="relative -bottom-4" />
         </StickToBottom.Content>
-        </StickToBottom>
+      </StickToBottom>
       {/* </ScrollArea> */}
 
       {/* Input */}
@@ -422,9 +466,15 @@ interface ChatMessageBubbleProps {
   isGeneratingResponse?: boolean;
 }
 
-function ChatMessageBubble({ message, onApplyStrategy, onOpenBacktestDialog, isGeneratingResponse }: ChatMessageBubbleProps) {
+function ChatMessageBubble({
+  message,
+  onApplyStrategy,
+  onOpenBacktestDialog,
+  isGeneratingResponse,
+}: ChatMessageBubbleProps) {
   const isUser = message.role === 'user';
-  const [extractedStrategy, setExtractedStrategy] = useState<StrategyTree | null>(null);
+  const [extractedStrategy, setExtractedStrategy] =
+    useState<StrategyTree | null>(null);
   const [isPreGenerated, setIsPreGenerated] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
   const strategyCardRef = useRef<HTMLDivElement>(null);
@@ -433,12 +483,17 @@ function ChatMessageBubble({ message, onApplyStrategy, onOpenBacktestDialog, isG
   useEffect(() => {
     if (!isUser && message.parts) {
       for (const part of message.parts) {
-        if (part.type === 'tool-generateStrategyTree' || part.type === 'tool-updateStrategyTree' || part.type === 'tool-editStrategyTree') {
+        if (
+          part.type === 'tool-generateStrategyTree' ||
+          part.type === 'tool-updateStrategyTree' ||
+          part.type === 'tool-editStrategyTree'
+        ) {
           try {
             const toolResult = part as any;
-            const result = typeof toolResult.output === 'string'
-              ? JSON.parse(toolResult.output)
-              : toolResult.output;
+            const result =
+              typeof toolResult.output === 'string'
+                ? JSON.parse(toolResult.output)
+                : toolResult.output;
 
             if (result.success && result.strategyTree) {
               setExtractedStrategy(result.strategyTree);
@@ -462,7 +517,9 @@ function ChatMessageBubble({ message, onApplyStrategy, onOpenBacktestDialog, isG
   // Scroll to strategy card when it appears
   useEffect(() => {
     if (extractedStrategy && strategyCardRef.current && !isGeneratingResponse) {
-      const scrollArea = strategyCardRef.current?.closest('[data-radix-scroll-area-viewport]') as HTMLElement;
+      const scrollArea = strategyCardRef.current?.closest(
+        '[data-radix-scroll-area-viewport]',
+      ) as HTMLElement;
       if (scrollArea) {
         scrollArea.scrollTop += 400;
       }
@@ -487,7 +544,11 @@ function ChatMessageBubble({ message, onApplyStrategy, onOpenBacktestDialog, isG
 
   const textContent = getTextContent();
   const fileParts = React.useMemo(() => {
-    const files: Array<{ url?: string; mediaType?: string; filename?: string }> = [];
+    const files: Array<{
+      url?: string;
+      mediaType?: string;
+      filename?: string;
+    }> = [];
     if (message.parts) {
       for (const part of message.parts) {
         if (part.type === 'file') {
@@ -512,22 +573,30 @@ function ChatMessageBubble({ message, onApplyStrategy, onOpenBacktestDialog, isG
   };
 
   // Skip rendering entirely when there's no visible content to show
-  if (!textContent && fileParts.length === 0 && (!extractedStrategy || isGeneratingResponse)) {
+  if (
+    !textContent &&
+    fileParts.length === 0 &&
+    (!extractedStrategy || isGeneratingResponse)
+  ) {
     return null;
   }
 
   return (
     <div className={cn('flex items-start gap-2', isUser && 'justify-end')}>
       {!isUser && (
-        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-          <Sparkle className="w-3 h-3 text-primary-foreground" weight="fill" />
+        <div className="w-6 h-6 rounded-[6px] bg-primary flex items-center justify-center flex-shrink-0">
+          <img
+            src="/favicon.png"
+            alt="AI"
+            className="w-[19px] h-[19px] brightness-0 invert"
+          />
         </div>
       )}
 
       <div
         className={cn(
           'min-w-0 p-3 rounded-lg',
-          isUser ? 'bg-primary text-primary-foreground' : 'flex-1 bg-muted'
+          isUser ? 'bg-primary text-primary-foreground' : 'flex-1 bg-muted',
         )}
       >
         {fileParts.length > 0 && (
@@ -561,18 +630,21 @@ function ChatMessageBubble({ message, onApplyStrategy, onOpenBacktestDialog, isG
         )}
 
         {textContent && (
-          <div className={cn(
-            'text-sm break-words prose prose-sm max-w-none',
-            isUser ? 'prose-invert' : 'prose-slate',
-          )}>
-            <Streamdown plugins={{ code }}>
-              {textContent}
-            </Streamdown>
+          <div
+            className={cn(
+              'text-sm break-words prose prose-sm max-w-none',
+              isUser ? 'prose-invert' : 'prose-slate',
+            )}
+          >
+            <Streamdown plugins={{ code }}>{textContent}</Streamdown>
           </div>
         )}
 
         {extractedStrategy && !isGeneratingResponse && (
-          <div ref={strategyCardRef} className="mt-3 p-3 rounded-md bg-card border border-border">
+          <div
+            ref={strategyCardRef}
+            className="mt-3 p-3 rounded-md bg-card border border-border"
+          >
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-foreground">
                 Generated Strategy
@@ -581,21 +653,22 @@ function ChatMessageBubble({ message, onApplyStrategy, onOpenBacktestDialog, isG
             <p className="text-xs text-muted-foreground mb-3">
               {extractedStrategy.name}
             </p>
-            { !isPreGenerated && (
+            {!isPreGenerated && (
               <Button
                 size="sm"
                 className="w-full gap-2"
                 onClick={handleApply}
                 disabled={hasApplied}
               >
-              <ChartLine className="w-4 h-4" />
-              {hasApplied ? 'Strategy Applied' : 'Apply Strategy'}
-            </Button> )}
+                <ChartLine className="w-4 h-4" />
+                {hasApplied ? 'Strategy Applied' : 'Apply Strategy'}
+              </Button>
+            )}
             {(hasApplied || isPreGenerated) && (
               <Button
                 size="sm"
                 variant="outline"
-                className={cn("w-full gap-2", !isPreGenerated && "mt-2")}
+                className={cn('w-full gap-2', !isPreGenerated && 'mt-2')}
                 onClick={() => onOpenBacktestDialog?.()}
               >
                 <Play className="w-4 h-4" />
