@@ -15,6 +15,7 @@ import { AIChatInput } from '@/components/ai-chat-input';
 import type { PromptInputMessage } from '@/components/ai-elements/prompt-input';
 import { cn } from '@/lib/utils';
 import { useStrategyStore } from '@/lib/store/strategy-store';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { StrategyTree, BacktestParams, DEFAULT_BACKTEST_PARAMS } from '@/lib/types/strategy';
 import { Streamdown } from 'streamdown';
 import { useChat } from '@ai-sdk/react';
@@ -85,6 +86,7 @@ export function AIChatPanel({
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
   const [isRunningBacktest, setIsRunningBacktest] = useState(false);
   const [backtestParams, setBacktestParams] = useState<BacktestParams>(DEFAULT_BACKTEST_PARAMS);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(false);
 
@@ -96,6 +98,7 @@ export function AIChatPanel({
   const { messages, setMessages, sendMessage, status, stop } = useChat({
     id: currentStrategyId || 'default',
     onError: (event: any) => {
+      console.log('Chat stream error:', event);
       toast.error(event?.message ?? 'An error occurred, please try again!');
 
       // Find the last user message to restore
@@ -154,10 +157,10 @@ export function AIChatPanel({
     if (smooth) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     } else {
-      // const scrollArea = document.querySelector('.scroll-area [data-radix-scroll-area-viewport]') as HTMLElement;
-      const scrollArea = document.querySelector(
-        '.scroll-area-wrapper > div',
-      ) as HTMLElement;
+      const scrollArea = document.querySelector('.scroll-area [data-radix-scroll-area-viewport]') as HTMLElement;
+      // const scrollArea = document.querySelector(
+      //   '.scroll-area-wrapper > div',
+      // ) as HTMLElement;
       if (scrollArea) {
         // Wait for DOM to be fully rendered before scrolling
         requestAnimationFrame(() => {
@@ -256,13 +259,8 @@ export function AIChatPanel({
       if (title && content) {
         const parts: any[] = [
           {
-            type: 'tool-news',
-            toolCallId: `call_${Date.now()}`,
-            state: 'output-available',
-            input: {
-              summary: 'news card from guide',
-            },
-            output: {
+            type: 'data-news',
+            data: {
               title,
               content,
             }
@@ -411,13 +409,14 @@ export function AIChatPanel({
       </div>
 
       {/* Messages */}
-      {/* <ScrollArea ref={scrollAreaRef} className="flex-1 min-h-0"> */}
-      <StickToBottom
+      <ScrollArea ref={scrollAreaRef} className="flex-1 min-h-0">
+      {/* <StickToBottom
         resize="smooth"
         initial="instant"
         className="scroll-area-wrapper flex-1 min-h-0"
       >
-        <StickToBottom.Content className="p-3 space-y-4" scrollClassName="!overflow-x-hidden">
+        <StickToBottom.Content className="p-3 space-y-4" scrollClassName="!overflow-x-hidden"> */}
+        <div className="p-3 space-y-4 !overflow-x-hidden">
           {messages.length === 0 ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
@@ -487,9 +486,10 @@ export function AIChatPanel({
           )}
 
           <div ref={messagesEndRef} className="relative -bottom-4" />
-        </StickToBottom.Content>
-      </StickToBottom>
-      {/* </ScrollArea> */}
+        {/* </StickToBottom.Content>
+      </StickToBottom> */}
+      </div>
+      </ScrollArea>
 
       {/* Input */}
       <div className="p-3 border-t border-border flex-shrink-0">
@@ -635,9 +635,9 @@ function ChatMessageBubble({
     const news: Array<{ title?: string; content?: string }> = [];
     if (message.parts) {
       for (const part of message.parts) {
-        if ((part as any).type === 'tool-news') {
+        if ((part as any).type === 'data-news') {
           const newsPart = part as any;
-          const output = newsPart?.output;
+          const output = newsPart?.data;
           if (output?.title || output?.content) {
             news.push({
               title: output.title,
