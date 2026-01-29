@@ -20,6 +20,7 @@ import { runBacktest } from '@/lib/backtest';
 import dayjs from 'dayjs';
 import './streamdown.css';
 import { code } from "./code";
+import { StickToBottom, useStickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
 
 interface AIChatPanelProps {
   width?: number;
@@ -113,7 +114,8 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
     if (smooth) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     } else {
-      const scrollArea = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+      // const scrollArea = document.querySelector('.scroll-area [data-radix-scroll-area-viewport]') as HTMLElement;
+      const scrollArea = document.querySelector('.scroll-area-wrapper > div') as HTMLElement;
       if (scrollArea) {
         // Wait for DOM to be fully rendered before scrolling
         requestAnimationFrame(() => {
@@ -124,7 +126,7 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
   };
 
   useEffect(() => {
-    scrollToBottom(true);
+    // scrollToBottom(true);
     // Scroll code blocks to bottom for better UX with max-height
     setTimeout(() => {
       const codeBlocks = document.querySelectorAll('[data-streamdown="code-block-body"]');
@@ -325,8 +327,12 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
       </div>
 
       {/* Messages */}
-      <ScrollArea ref={scrollAreaRef} className="flex-1 min-h-0">
-        <div className="p-3 space-y-4">
+      {/* <ScrollArea ref={scrollAreaRef} className="flex-1 min-h-0"> */}
+        <StickToBottom
+          resize="smooth" initial="instant"
+          className="scroll-area-wrapper flex-1 min-h-0"
+        >
+        <StickToBottom.Content className="p-3 space-y-4">
           {messages.length === 0 ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
@@ -388,8 +394,9 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
           )}
 
           <div ref={messagesEndRef} className="relative -bottom-4" />
-        </div>
-      </ScrollArea>
+        </StickToBottom.Content>
+        </StickToBottom>
+      {/* </ScrollArea> */}
 
       {/* Input */}
       <div className="p-3 border-t border-border flex-shrink-0">
