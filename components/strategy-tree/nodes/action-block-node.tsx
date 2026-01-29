@@ -181,6 +181,11 @@ export function ActionBlockNode({
                         {sym}
                       </SelectItem>
                     ))}
+                    {editValues.symbol && !AVAILABLE_SYMBOLS.includes(editValues.symbol) && (
+                      <SelectItem value={editValues.symbol}>
+                        {editValues.symbol}
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
