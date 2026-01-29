@@ -378,10 +378,10 @@ export function AIChatPanel({ width, onApplyStrategy, onRunBacktest, onSwitchToB
                 <Sparkle className="w-3 h-3 text-primary-foreground" weight="fill" />
               </div>
               <div className="flex-1 p-3 rounded-lg bg-muted">
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" />
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce [animation-delay:0.1s]" />
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce [animation-delay:0.2s]" />
+                <div className="flex py-1 items-center gap-1">
+                  <div className="h-[7px] w-[7px] rounded-full bg-muted-foreground animate-[typing_1s_infinite]" />
+                  <div className="h-[7px] w-[7px] rounded-full bg-muted-foreground animate-[typing_1s_infinite] [animation-delay:0.25s]" />
+                  <div className="h-[7px] w-[7px] rounded-full bg-muted-foreground animate-[typing_1s_infinite] [animation-delay:0.5s]" />
                 </div>
               </div>
             </div>

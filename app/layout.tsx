@@ -10,7 +10,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'NOFA Strategy - AI Trading Strategy Builder',
-  description: 'Build and backtest quantitative trading strategies with AI assistance',
+  description: 'Build and backtest quantitative trading strategies with NOFA AI',
   generator: 'v0.app',
   icons: {
     icon: [

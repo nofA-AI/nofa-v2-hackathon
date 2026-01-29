@@ -74,7 +74,7 @@ export function MainContentArea({ width, onResizeStart, onCreateWithAI, onSwitch
           </div>
           <h2 className="text-xl font-semibold mb-2">Welcome to NOFA</h2>
           <p className="text-muted-foreground mb-6">
-            Build and backtest quantitative trading strategies with AI assistance.
+            Build and backtest quantitative trading strategies with NOFA AI.
             Create a new strategy from the sidebar or use AI to generate one.
           </p>
           <div className="flex gap-3 justify-center">

@@ -137,3 +137,15 @@
   min-width: 0;
   width: 100%;
 }
+
+@keyframes typing {
+  0%,
+  to {
+    opacity: 0.5;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
