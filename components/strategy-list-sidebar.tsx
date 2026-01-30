@@ -82,8 +82,8 @@ export function StrategyListSidebar() {
 
   return (
     <>
-      <div className="w-64 border-r border-border bg-card flex flex-col">
-        <div className="flex items-center justify-between p-3 border-b border-border h-[49px]">
+      <div className="w-64 border-r border-border bg-card flex flex-col h-full overflow-hidden">
+        <div className="flex items-center justify-between p-3 border-b border-border h-[49px] flex-shrink-0">
           <h2 className="font-medium text-sm">Strategies</h2>
           <div className="flex items-center gap-1">
             <Button
@@ -105,7 +105,7 @@ export function StrategyListSidebar() {
           </div>
         </div>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 overflow-hidden">
           {strategies.length === 0 ? (
             <div className="p-4 text-center">
               <p className="text-sm text-muted-foreground mb-4">
