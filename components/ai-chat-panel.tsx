@@ -85,7 +85,7 @@ export function AIChatPanel({
 }: AIChatPanelProps) {
   const [loadingTextIndex, setLoadingTextIndex] = useState(0);
   const [input, setInput] = useState('');
-  const [selectedModelId, setSelectedModelId] = useState<modelID>('gpt-5.2');
+  const [selectedModelId, setSelectedModelId] = useState<modelID>('openrouter/gpt-5.2');
   const [isReasoningEnabled, setIsReasoningEnabled] = useState<boolean>(true);
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
   const [isRunningBacktest, setIsRunningBacktest] = useState(false);

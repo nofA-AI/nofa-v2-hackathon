@@ -1,33 +1,31 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createOpenAI} from "@ai-sdk/openai"
 import {
   customProvider,
   extractReasoningMiddleware,
   wrapLanguageModel,
 } from "ai";
 
-// Create OpenRouter provider instance
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
+});
+
+// Create OpenRouter provider instance with custom base URL
+const openai = createOpenAI({
+  apiKey: process.env.APPLEROUTER_API_KEY,
+  baseURL: "https://api.applerouter.ai/v1",
 });
 
 // custom provider with different model settings using OpenRouter:
 export const myProvider = customProvider({
   languageModels: {
-    "gpt-5.2": wrapLanguageModel({
+    "openrouter/gpt-5.2": wrapLanguageModel({
       model: openrouter.chat("openai/gpt-5.2"),
       middleware: [],
     }),
-    "deepseek-r1": wrapLanguageModel({
-      middleware: extractReasoningMiddleware({
-        tagName: "think",
-      }),
-      model: openrouter.chat("deepseek/deepseek-r1"),
-    }),
-    "deepseek-r1-distill-llama-70b": wrapLanguageModel({
-      middleware: extractReasoningMiddleware({
-        tagName: "think",
-      }),
-      model: openrouter.chat("groq/deepseek-r1-distill-llama-70b"),
+    "applerouter/gpt-5.2": wrapLanguageModel({
+      model: openai.chat("gpt-5.2"),
+      middleware: [],
     }),
   },
 });
@@ -35,7 +33,6 @@ export const myProvider = customProvider({
 export type modelID = Parameters<(typeof myProvider)["languageModel"]>["0"];
 
 export const models: Record<modelID, string> = {
-  "gpt-5.2": "GPT-5.2",
-  "deepseek-r1": "DeepSeek-R1",
-  "deepseek-r1-distill-llama-70b": "DeepSeek-R1 Llama 70B",
+  "openrouter/gpt-5.2": "openrouter/gpt-5.2",
+  "applerouter/gpt-5.2": "applerouter/gpt-5.2",
 };

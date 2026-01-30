@@ -192,7 +192,7 @@ const AIChatElementsPanel = ({
   onSwitchToBacktest,
 }: AIChatElementsPanelProps) => {
   const [input, setInput] = useState<string>("");
-  const [model, setModel] = useState<modelID>(modelEntries[0]?.[0] || ("gpt-5.2" as modelID));
+  const [model, setModel] = useState<modelID>(modelEntries[0]?.[0] || ("gpt-5" as modelID));
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const [useWebSearch, setUseWebSearch] = useState<boolean>(false);
   const [useMicrophone, setUseMicrophone] = useState<boolean>(false);
