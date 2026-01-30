@@ -27,14 +27,11 @@ import { runBacktest } from '@/lib/backtest';
 import dayjs from 'dayjs';
 import './streamdown.css';
 import { code } from './code';
-import { StickToBottom } from 'use-stick-to-bottom';
-import {
-  Reasoning,
-  ReasoningContent,
-  ReasoningTrigger,
-} from '@/components/ai-elements/reasoning';
 import { Loader } from '@/components/ai-elements/loader';
 import { Shimmer } from '@/components/ai-elements/shimmer';
+import { EmptyStatus } from './ai-chat-panel/empty-status';
+import { MessageParts } from './ai-chat-panel/message-parts';
+import { StrategyCard } from './ai-chat-panel/strategy-card';
 
 interface AIChatPanelProps {
   width?: number;
@@ -197,9 +194,6 @@ export function AIChatPanel({
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     } else {
       const scrollArea = document.querySelector('.scroll-area [data-radix-scroll-area-viewport]') as HTMLElement;
-      // const scrollArea = document.querySelector(
-      //   '.scroll-area-wrapper > div',
-      // ) as HTMLElement;
       if (scrollArea) {
         // Wait for DOM to be fully rendered before scrolling
         requestAnimationFrame(() => {
@@ -456,41 +450,7 @@ export function AIChatPanel({
         <StickToBottom.Content className="p-3 space-y-4" scrollClassName="!overflow-x-hidden"> */}
         <div className="p-3 space-y-4 !overflow-x-hidden">
           {messages.length === 0 ? (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Describe your trading strategy in natural language and I'll help
-                you build it.
-              </p>
-
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Quick Start
-                </p>
-                {quickStartPrompts.map((prompt, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    className="w-full text-left p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
-                    onClick={() => handleSend(prompt.prompt)}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <prompt.icon
-                          className="w-4 h-4 text-primary"
-                          weight="bold"
-                        />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{prompt.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {prompt.description}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <EmptyStatus quickStartPrompts={quickStartPrompts} onSendMessage={handleSend} />
           ) : (
             messages.map((message) => (
               <ChatMessageBubble
@@ -513,7 +473,7 @@ export function AIChatPanel({
             </div>
           )}
 
-          <div ref={messagesEndRef} className="relative -bottom-4" />
+          <div ref={messagesEndRef} className="h-0" />
         {/* </StickToBottom.Content>
       </StickToBottom> */}
       </div>
@@ -567,7 +527,6 @@ function ChatMessageBubble({
 }: ChatMessageBubbleProps) {
   const isUser = message.role === 'user';
   const [hasApplied, setHasApplied] = useState(false);
-  const strategyCardRef = useRef<HTMLDivElement>(null);
 
   // Extract strategy from tool calls using useMemo
   const { extractedStrategy, isPreGenerated } = React.useMemo(() => {
@@ -635,7 +594,7 @@ function ChatMessageBubble({
 
     for (let i = 0; i < message.parts.length; i++) {
       const part = message.parts[i];
-      if (part.type === 'reasoning' || (part as any).type === 'reasoning') {
+      if (part.type === 'reasoning') {
         const reasoningPart = part as any;
         const text = reasoningPart.text || reasoningPart.content || '';
         if (text) {
@@ -690,15 +649,11 @@ function ChatMessageBubble({
   }, [message.parts]);
 
   const handleAnalyzeNews = (title: string, content: string) => {
-    onSendMessage(`Analyze this news: ${title}\n\n${content}`);
-  };
-
-  const handleSearchRelatedNews = (title: string) => {
-    onSendMessage(`Search for related news about: ${title}`);
+     onSendMessage(`Analyze this news: ${title}\n\n${content}`);
   };
 
   const handleGenerateStrategy = (title: string, content: string) => {
-    onSendMessage(`Based on this news \n\n${title} \n\n ${content}\n\nGenerate a trading strategy`);
+     onSendMessage(`Based on this news \n\n${title} \n\n ${content}\n\nGenerate a trading strategy`);
   };
 
   const handleApply = () => {
@@ -728,156 +683,25 @@ function ChatMessageBubble({
         )}
       >
         {/* Reasoning Display */}
-        {!isUser && reasoningPart && (
-          <Reasoning
-            key={`${message.id}-reasoning`}
-            className="w-full mb-3"
-            isStreaming={
-              isGeneratingResponse &&
-              reasoningPart.index === message.parts!.length - 1
-            }
-          >
-            <ReasoningTrigger />
-            <ReasoningContent>
-              {reasoningPart.text}
-            </ReasoningContent>
-          </Reasoning>
-        )}
+        <MessageParts
+          reasoningPart={reasoningPart}
+          newsParts={newsParts}
+          fileParts={fileParts}
+          textContent={textContent}
+          isUser={isUser}
+          isGeneratingResponse={isGeneratingResponse}
+          message={message}
+          onSendMessage={onSendMessage}
+        />
 
-        {newsParts.length > 0 && (
-          <div className={cn('space-y-3', textContent || fileParts.length > 0 ? 'mb-3' : '')}>
-            {newsParts.map((news, index) => (
-              <div
-                key={index}
-                className="border border-border rounded-lg p-3 bg-card space-y-2"
-                data-news-title={news.title}
-                data-news-content={news.content}
-              >
-                {news.title && (
-                  <h3 className="text-sm font-semibold text-foreground">
-                    {news.title}
-                  </h3>
-                )}
-                {news.content && (
-                  <p className="text-xs text-muted-foreground line-clamp-4">
-                    {news.content}
-                  </p>
-                )}
-                <div className="flex flex-col gap-2 pt-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full text-xs text-foreground"
-                    onClick={() =>
-                      handleAnalyzeNews(news.title || '', news.content || '')
-                    }
-                  >
-                    Analyze News
-                  </Button>
-                  {/* <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full text-xs text-foreground"
-                    onClick={() =>
-                      handleSearchRelatedNews(news.title || '')
-                    }
-                  >
-                    Search Related News
-                  </Button> */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full text-xs text-foreground"
-                    onClick={() =>
-                      handleGenerateStrategy(news.title || '', news.content || '')
-                    }
-                  >
-                    Generate Strategy
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {fileParts.length > 0 && (
-          <div className={cn('grid gap-2', textContent ? 'mb-2' : '')}>
-            {fileParts.map((file, index) => {
-              const isImage = file.mediaType?.startsWith('image/');
-              if (isImage) {
-                return (
-                  <img
-                    key={`${file.url}-${index}`}
-                    src={file.url}
-                    alt={file.filename ?? 'Image attachment'}
-                    className="max-h-64 w-auto max-w-full rounded-md border border-border object-contain"
-                  />
-                );
-              }
-
-              return (
-                <a
-                  key={`${file.url}-${index}`}
-                  href={file.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
-                >
-                  {file.filename ?? 'Attachment'}
-                </a>
-              );
-            })}
-          </div>
-        )}
-
-        {textContent && (
-          <div
-            className={cn(
-              'text-sm break-words',
-              isUser ? 'text-foreground whitespace-pre-line' : 'prose prose-sm prose-slate max-w-none',
-            )}
-          >
-            {isUser ? textContent : <Streamdown plugins={{ code }}>{textContent}</Streamdown>}
-          </div>
-        )}
-
-        {extractedStrategy && !isGeneratingResponse && (
-          <div
-            ref={strategyCardRef}
-            className="mt-3 p-3 rounded-md bg-card border border-border max-w-[360px]"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-foreground">
-                Generated Strategy
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground mb-3">
-              {extractedStrategy.name}
-            </p>
-            {!isPreGenerated && (
-              <Button
-                size="sm"
-                className="w-full gap-2"
-                onClick={handleApply}
-                disabled={hasApplied}
-              >
-                <ChartLine className="w-4 h-4" />
-                {hasApplied ? 'Strategy Applied' : 'Apply Strategy'}
-              </Button>
-            )}
-            {(hasApplied || isPreGenerated) && (
-              <Button
-                size="sm"
-                variant="outline"
-                className={cn('w-full gap-2', !isPreGenerated && 'mt-2')}
-                onClick={() => onOpenBacktestDialog?.()}
-              >
-                <Play className="w-4 h-4" />
-                Run Backtest
-              </Button>
-            )}
-          </div>
-        )}
+        <StrategyCard
+          extractedStrategy={extractedStrategy}
+          isGeneratingResponse={isGeneratingResponse}
+          isPreGenerated={isPreGenerated}
+          hasApplied={hasApplied}
+          onApply={handleApply}
+          onOpenBacktestDialog={() => onOpenBacktestDialog?.()}
+        />
       </div>
     </div>
   );
