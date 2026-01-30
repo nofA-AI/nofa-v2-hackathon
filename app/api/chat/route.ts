@@ -46,7 +46,7 @@ function validateStrategyTree(tree: any): { valid: boolean; error?: string } {
   const validateConditionItem = (cond: any, path: string): string | null => {
     if (cond.type !== 'CONDITION_ITEM') return `${path}.type 必须为 'CONDITION_ITEM'`;
 
-    const validIndicators = ['Current Price', 'Cumulative Return', 'EMA', 'MA', 'Moving Average of Return', 'Max Drawdown', 'RSI'];
+    const validIndicators = ['Current Price', 'Cumulative Return', 'EMA', 'MA', 'Moving Average of Return', 'Max Drawdown', 'RSI', 'Bollinger Bands', 'ADX', 'SMMA', 'MACD', 'Moon Phases'];
     if (!validIndicators.includes(cond.indicator)) {
       return `${path}.indicator 不支持该指标，请选择合法指标类型`;
     }
@@ -355,7 +355,7 @@ A valid strategy tree must follow this structure with all required type fields:
 ### Condition Item (CONDITION_ITEM)
 {
   "type": "CONDITION_ITEM",
-  "indicator": "Current Price" | "Cumulative Return" | "EMA" | "MA" | "Moving Average of Return" | "Max Drawdown" | "RSI",
+  "indicator": "Current Price" | "Cumulative Return" | "EMA" | "MA" | "Moving Average of Return" | "Max Drawdown" | "RSI" | "Bollinger Bands" | "ADX" | "SMMA" | "MACD" | "Moon Phases",
   "period": number (1-1000),
   "symbol": "XXX/USDT" (e.g., "BTC/USDT"),
   "operator": "Greater Than" | "Less Than" | "Equal",
@@ -365,7 +365,7 @@ A valid strategy tree must follow this structure with all required type fields:
 For indicator-based comparison value:
 {
   "type": "CONDITION_VALUE_INDICATOR",
-  "indicator": "...",
+  "indicator": "Current Price" | "Cumulative Return" | "EMA" | "MA" | "Moving Average of Return" | "Max Drawdown" | "RSI" | "Bollinger Bands" | "ADX" | "SMMA" | "MACD" | "Moon Phases",
   "period": number (1-1000),
   "symbol": "XXX/USDT"
 }

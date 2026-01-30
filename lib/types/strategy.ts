@@ -17,11 +17,16 @@ export type CompareOperator = 'Greater Than' | 'Less Than' | 'Equal';
 export type IndicatorType =
   | 'Current Price'
   | 'Cumulative Return'
-  | 'EMA'
-  | 'MA'
+  | 'EMA' // Exponential Moving Average
+  | 'MA' // Moving Average of Price
   | 'Moving Average of Return'
   | 'Max Drawdown'
-  | 'RSI';
+  | 'RSI' // Relative Strength Index
+  | 'Bollinger Bands' // Bollinger Bands
+  | 'ADX' // Average Directional Index
+  | 'SMMA' // Smoothed Moving Average
+  | 'MACD' // Moving Average Convergence Divergence
+  | 'Moon Phases'; // Moon Phases
 
 /** Condition type */
 export type ConditionType = 'Compare' | 'Cross';
@@ -225,4 +230,9 @@ export const AVAILABLE_INDICATORS: IndicatorType[] = [
   'Moving Average of Return',
   'Max Drawdown',
   'RSI',
+  'Bollinger Bands',
+  'ADX',
+  'SMMA',
+  'MACD',
+  'Moon Phases',
 ];
