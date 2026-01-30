@@ -109,6 +109,7 @@ export function AIChatPanel({
   ];
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(false);
 
@@ -190,21 +191,46 @@ export function AIChatPanel({
   }, [messages]);
 
   const scrollToBottom = (smooth: boolean = true) => {
-    if (smooth) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      const scrollArea = document.querySelector('.scroll-area [data-radix-scroll-area-viewport]') as HTMLElement;
-      if (scrollArea) {
-        // Wait for DOM to be fully rendered before scrolling
-        requestAnimationFrame(() => {
-          scrollArea.scrollTop = scrollArea.scrollHeight + 99999;
-        });
+    const scrollArea = document.querySelector(
+      '.scroll-area [data-radix-scroll-area-viewport]',
+    ) as HTMLElement | null;
+
+    if (!scrollArea) return;
+
+    const doScroll = () => {
+      if (smooth) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      } else {
+        scrollArea.scrollTop = scrollArea.scrollHeight;
       }
-    }
+    };
+
+    // Ensure StrategyCard/layout changes are applied before measuring
+    requestAnimationFrame(() => {
+      requestAnimationFrame(doScroll);
+    });
   };
 
   useEffect(() => {
-    scrollToBottom(true);
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const observer = new MutationObserver(() => {
+      scrollToBottom(isGeneratingResponse);
+    });
+
+    observer.observe(container, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    return () => observer.disconnect();
+  }, [isGeneratingResponse]);
+
+  // Auto-scroll on messages update
+  useEffect(() => {
+    // scrollToBottom(isGeneratingResponse);
     // Scroll code blocks to bottom for better UX with max-height
     setTimeout(() => {
       const codeBlocks = document.querySelectorAll(
@@ -226,6 +252,7 @@ export function AIChatPanel({
       const delay = !isMountedRef.current ? 800 : 100;
       setTimeout(() => {
         scrollToBottom(false);
+        // console.log('Loaded stored messages for', delay, storageKey);
       }, delay);
       // 标记已经挂载，后续切换策略时使用较短延迟
       if (!isMountedRef.current) {
@@ -448,7 +475,7 @@ export function AIChatPanel({
         className="scroll-area-wrapper flex-1 min-h-0"
       >
         <StickToBottom.Content className="p-3 space-y-4" scrollClassName="!overflow-x-hidden"> */}
-        <div className="p-3 space-y-4 !overflow-x-hidden">
+        <div ref={messagesContainerRef} className="p-3 space-y-4 !overflow-x-hidden">
           {messages.length === 0 ? (
             <EmptyStatus quickStartPrompts={quickStartPrompts} onSendMessage={handleSend} />
           ) : (
