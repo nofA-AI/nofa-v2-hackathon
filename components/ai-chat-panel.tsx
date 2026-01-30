@@ -33,6 +33,7 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from '@/components/ai-elements/reasoning';
+import { Loader } from '@/components/ai-elements/loader';
 
 interface AIChatPanelProps {
   width?: number;
@@ -84,13 +85,25 @@ export function AIChatPanel({
   onRunBacktest,
   onSwitchToBacktest,
 }: AIChatPanelProps) {
+  const [loadingTextIndex, setLoadingTextIndex] = useState(0);
   const [input, setInput] = useState('');
-
   const [selectedModelId, setSelectedModelId] = useState<modelID>('gpt-5.2');
   const [isReasoningEnabled, setIsReasoningEnabled] = useState<boolean>(true);
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
   const [isRunningBacktest, setIsRunningBacktest] = useState(false);
   const [backtestParams, setBacktestParams] = useState<BacktestParams>(DEFAULT_BACKTEST_PARAMS);
+
+  const loadingTexts = [
+    'Analyzing your strategy...',
+    'Processing market data...',
+    'Generating insights...',
+    'Optimizing parameters...',
+    'Building your strategy...',
+    'Calculating metrics...',
+    'Refining recommendations...',
+    'Almost there...',
+  ];
+
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(false);
@@ -142,6 +155,20 @@ export function AIChatPanel({
   });
 
   const isGeneratingResponse = ['streaming', 'submitted'].includes(status);
+
+  useEffect(() => {
+    if (!isGeneratingResponse) return;
+
+    const interval = setInterval(() => {
+      setLoadingTextIndex((prev) => (prev + 1) % loadingTexts.length);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isGeneratingResponse]);
+
+  useEffect(() => {
+    setLoadingTextIndex(0);
+  }, [isGeneratingResponse]);
 
   const assistantHasVisibleContent = React.useMemo(() => {
     const lastMessage = messages[messages.length - 1];
@@ -471,11 +498,10 @@ export function AIChatPanel({
           )}
 
           {isGeneratingResponse && !assistantHasVisibleContent && (
-            <div className="flex items-start gap-2">
-              <div className="flex py-1 items-center gap-1">
-                <div className="h-[7px] w-[7px] rounded-full bg-muted-foreground animate-[typing_1s_infinite]" />
-                <div className="h-[7px] w-[7px] rounded-full bg-muted-foreground animate-[typing_1s_infinite] [animation-delay:0.25s]" />
-                <div className="h-[7px] w-[7px] rounded-full bg-muted-foreground animate-[typing_1s_infinite] [animation-delay:0.5s]" />
+            <div className="flex items-center gap-3">
+              <Loader size={16} className="text-muted-foreground flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-muted-foreground pt-0.5 animate-pulse">
+                {loadingTexts[loadingTextIndex]}
               </div>
             </div>
           )}
