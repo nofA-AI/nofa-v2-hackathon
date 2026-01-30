@@ -87,7 +87,7 @@ export function AIChatPanel({
   const [input, setInput] = useState('');
 
   const [selectedModelId, setSelectedModelId] = useState<modelID>('gpt-5.2');
-  const [isReasoningEnabled, setIsReasoningEnabled] = useState<boolean>(false);
+  const [isReasoningEnabled, setIsReasoningEnabled] = useState<boolean>(true);
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
   const [isRunningBacktest, setIsRunningBacktest] = useState(false);
   const [backtestParams, setBacktestParams] = useState<BacktestParams>(DEFAULT_BACKTEST_PARAMS);
@@ -195,9 +195,7 @@ export function AIChatPanel({
     const stored = loadStoredMessages(storageKey);
     if (stored.length) {
       setMessages(stored);
-      // 区别页面刷新打开（延迟300ms）和切换策略打开（延迟50ms）
-      // const delay = isMountedRef.current ? 50 : 500;
-      const delay = 50;
+      const delay = !isMountedRef.current ? 800 : 100;
       setTimeout(() => {
         scrollToBottom(false);
       }, delay);
@@ -474,19 +472,10 @@ export function AIChatPanel({
 
           {isGeneratingResponse && !assistantHasVisibleContent && (
             <div className="flex items-start gap-2">
-              <div className="w-6 h-6 rounded-[6px] bg-primary flex items-center justify-center flex-shrink-0">
-                <img
-                  src="/favicon.png"
-                  alt="AI"
-                  className="w-[19px] h-[19px] brightness-0 invert"
-                />
-              </div>
-              <div className="flex-1 p-3 rounded-lg bg-muted">
-                <div className="flex py-1 items-center gap-1">
-                  <div className="h-[7px] w-[7px] rounded-full bg-muted-foreground animate-[typing_1s_infinite]" />
-                  <div className="h-[7px] w-[7px] rounded-full bg-muted-foreground animate-[typing_1s_infinite] [animation-delay:0.25s]" />
-                  <div className="h-[7px] w-[7px] rounded-full bg-muted-foreground animate-[typing_1s_infinite] [animation-delay:0.5s]" />
-                </div>
+              <div className="flex py-1 items-center gap-1">
+                <div className="h-[7px] w-[7px] rounded-full bg-muted-foreground animate-[typing_1s_infinite]" />
+                <div className="h-[7px] w-[7px] rounded-full bg-muted-foreground animate-[typing_1s_infinite] [animation-delay:0.25s]" />
+                <div className="h-[7px] w-[7px] rounded-full bg-muted-foreground animate-[typing_1s_infinite] [animation-delay:0.5s]" />
               </div>
             </div>
           )}
@@ -608,18 +597,21 @@ function ChatMessageBubble({
 
   const textContent = getTextContent();
 
-  // Extract reasoning content from message parts
-  const reasoningContent = React.useMemo(() => {
-    if (isUser || !message.parts) return '';
+  const reasoningPart = React.useMemo(() => {
+    if (isUser || !message.parts) return null;
 
-    for (const part of message.parts) {
+    for (let i = 0; i < message.parts.length; i++) {
+      const part = message.parts[i];
       if (part.type === 'reasoning' || (part as any).type === 'reasoning') {
         const reasoningPart = part as any;
-        return reasoningPart.text || reasoningPart.content || '';
+        const text = reasoningPart.text || reasoningPart.content || '';
+        if (text) {
+          return { index: i, text };
+        }
       }
     }
 
-    return '';
+    return null;
   }, [message.parts, isUser]);
 
   const fileParts = React.useMemo(() => {
@@ -694,34 +686,30 @@ function ChatMessageBubble({
 
   return (
     <div className={cn('flex items-start gap-2', isUser && 'justify-end')}>
-      {!isUser && (
-        <div className="w-6 h-6 rounded-[6px] bg-primary flex items-center justify-center flex-shrink-0">
-          <img
-            src="/favicon.png"
-            alt="AI"
-            className="w-[19px] h-[19px] brightness-0 invert"
-          />
-        </div>
-      )}
-
       <div
         className={cn(
-          'min-w-0 rounded-lg',
-          newsParts.length === 0 && 'p-3',
-          isUser
-            ? 'bg-primary text-primary-foreground'
-            : (newsParts.length === 0 ? 'flex-1 bg-muted' : ''),
+          'min-w-0 max-w-[90%] rounded-lg',
+          isUser && 'p-3',
+          isUser && 'bg-muted text-foreground',
+          !isUser && newsParts.length > 0 && 'flex-1',
         )}
       >
         {/* Reasoning Display */}
-        {/* {!isUser && reasoningContent && (
-          <div className="mb-3">
-            <Reasoning className="w-full" isStreaming={isGeneratingResponse}>
-              <ReasoningTrigger />
-              <ReasoningContent>{reasoningContent}</ReasoningContent>
-            </Reasoning>
-          </div>
-        )} */}
+        {!isUser && reasoningPart && (
+          <Reasoning
+            key={`${message.id}-reasoning`}
+            className="w-full mb-3"
+            isStreaming={
+              isGeneratingResponse &&
+              reasoningPart.index === message.parts!.length - 1
+            }
+          >
+            <ReasoningTrigger />
+            <ReasoningContent>
+              {reasoningPart.text}
+            </ReasoningContent>
+          </Reasoning>
+        )}
 
         {newsParts.length > 0 && (
           <div className={cn('space-y-3', textContent || fileParts.length > 0 ? 'mb-3' : '')}>
@@ -813,7 +801,7 @@ function ChatMessageBubble({
           <div
             className={cn(
               'text-sm break-words',
-              isUser ? 'text-primary-foreground whitespace-pre-line' : 'prose prose-sm prose-slate max-w-none',
+              isUser ? 'text-foreground whitespace-pre-line' : 'prose prose-sm prose-slate max-w-none',
             )}
           >
             {isUser ? textContent : <Streamdown plugins={{ code }}>{textContent}</Streamdown>}
@@ -823,7 +811,7 @@ function ChatMessageBubble({
         {extractedStrategy && !isGeneratingResponse && (
           <div
             ref={strategyCardRef}
-            className="mt-3 p-3 rounded-md bg-card border border-border"
+            className="mt-3 p-3 rounded-md bg-card border border-border max-w-[360px]"
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-foreground">

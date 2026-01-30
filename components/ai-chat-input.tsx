@@ -118,7 +118,7 @@ export function AIChatInput({
               <PromptInputActionAddAttachments label="Add images" />
             </PromptInputActionMenuContent>
           </PromptInputActionMenu>
-          <ModelSelector
+          {/* <ModelSelector
             open={modelSelectorOpen}
             onOpenChange={setModelSelectorOpen}
           >
@@ -147,7 +147,7 @@ export function AIChatInput({
                 </ModelSelectorGroup>
               </ModelSelectorList>
             </ModelSelectorContent>
-          </ModelSelector>
+          </ModelSelector> */}
         </PromptInputTools>
         <PromptInputSubmit
           status={status}
