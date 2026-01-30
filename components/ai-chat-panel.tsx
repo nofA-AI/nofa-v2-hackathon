@@ -34,6 +34,7 @@ import {
   ReasoningTrigger,
 } from '@/components/ai-elements/reasoning';
 import { Loader } from '@/components/ai-elements/loader';
+import { Shimmer } from '@/components/ai-elements/shimmer';
 
 interface AIChatPanelProps {
   width?: number;
@@ -101,6 +102,12 @@ export function AIChatPanel({
     'Building your strategy...',
     'Calculating metrics...',
     'Refining recommendations...',
+    'Evaluating risk factors...',
+    'Fine-tuning entry points...',
+    'Analyzing market trends...',
+    'Generating signals...',
+    'Validating strategy logic...',
+    'Optimizing performance...',
     'Almost there...',
   ];
 
@@ -500,9 +507,9 @@ export function AIChatPanel({
           {isGeneratingResponse && !assistantHasVisibleContent && (
             <div className="flex items-center gap-3">
               <Loader size={16} className="text-muted-foreground flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-muted-foreground pt-0.5 animate-pulse">
+              <Shimmer className="text-sm pt-0.5">
                 {loadingTexts[loadingTextIndex]}
-              </div>
+              </Shimmer>
             </div>
           )}
 
