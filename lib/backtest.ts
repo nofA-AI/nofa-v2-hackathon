@@ -46,9 +46,12 @@ interface BacktestApiResponse {
     close_time: string;
     symbol: string;
     direction: 'LONG' | 'SHORT';
+    entry_price: number;
+    exit_price: number;
     position_size_usd: number;
     position_size_token: number | null;
     pnl: number;
+    return_pct: number;
     cumulative_pnl: number;
   }>;
   execution_time_seconds: number;
@@ -135,7 +138,7 @@ export const runBacktest = async (
       });
 
       data.trades.forEach((trade) => {
-        currentValue += trade.pnl;
+        currentValue = initialCapital + trade.cumulative_pnl;
         performanceData.push({
           date: dayjs(trade.close_time).format('YYYY-MM-DD'),
           value: currentValue,
@@ -153,6 +156,21 @@ export const runBacktest = async (
       });
     }
 
+    // Convert trades to positions format
+    const positions = data.trades.map((trade) => ({
+      date: dayjs(trade.open_time).format('YYYY-MM-DD'),
+      symbol: trade.symbol,
+      direction: trade.direction,
+      entry: trade.entry_price,
+      exit: trade.exit_price,
+      pnl: trade.pnl,
+      pnlPercent: trade.return_pct,
+    }));
+
+    // Calculate annualized return
+    const daysCount = dayjs(params.endDate).diff(dayjs(params.startDate), 'day') || 1;
+    const annualizedReturn = (data.kpis.total_pnl / initialCapital) * (365 / daysCount);
+
     // Generate benchmark data (simple market performance)
     const benchmarkData: { date: string; value: number }[] = [];
     const days = dayjs(params.endDate).diff(dayjs(params.startDate), 'day');
@@ -163,21 +181,6 @@ export const runBacktest = async (
       benchmarkValue = benchmarkValue * (1 + change);
       benchmarkData.push({ date, value: benchmarkValue });
     }
-
-    // Convert trades to positions format
-    const positions = data.trades.map((trade) => ({
-      date: dayjs(trade.open_time).format('YYYY-MM-DD'),
-      symbol: trade.symbol,
-      direction: trade.direction,
-      entry: trade.position_size_usd / (trade.position_size_token || 1),
-      exit: (trade.position_size_usd + trade.pnl) / (trade.position_size_token || 1),
-      pnl: trade.pnl,
-      pnlPercent: (trade.pnl / trade.position_size_usd) * 100,
-    }));
-
-    // Calculate annualized return
-    const daysCount = dayjs(params.endDate).diff(dayjs(params.startDate), 'day') || 1;
-    const annualizedReturn = totalReturn * (365 / daysCount);
 
     return {
       strategyId: data.request_id,
@@ -193,7 +196,7 @@ export const runBacktest = async (
         totalTrades: data.kpis.total_trades,
       },
       performanceData,
-      benchmarkData,
+      benchmarkData: benchmarkData, // Assuming benchmark data is still needed
       positions,
     };
   } catch (error) {
