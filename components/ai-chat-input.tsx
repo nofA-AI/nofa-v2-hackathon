@@ -100,7 +100,7 @@ export function AIChatInput({
   };
 
   return (
-    <PromptInput accept="image/*" multiple onSubmit={handleSubmit}>
+    <PromptInput accept="image/*,application/pdf" multiple onSubmit={handleSubmit}>
       <PromptInputAttachmentsDisplay />
       <PromptInputBody>
         <PromptInputTextarea
@@ -115,7 +115,7 @@ export function AIChatInput({
           <PromptInputActionMenu>
             <PromptInputActionMenuTrigger />
             <PromptInputActionMenuContent>
-              <PromptInputActionAddAttachments label="Add images" />
+              <PromptInputActionAddAttachments label="Add attachments" />
             </PromptInputActionMenuContent>
           </PromptInputActionMenu>
           <ModelSelector

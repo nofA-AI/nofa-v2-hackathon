@@ -398,10 +398,20 @@ export const PromptInput = ({
         .filter(Boolean);
 
       return patterns.some((pattern) => {
+        // Handle wildcard MIME types (e.g., "image/*")
         if (pattern.endsWith("/*")) {
           const prefix = pattern.slice(0, -1); // e.g: image/* -> image/
           return f.type.startsWith(prefix);
         }
+
+        // Handle file extensions (e.g., ".md", ".pdf")
+        if (pattern.startsWith(".")) {
+          const fileName = f.name.toLowerCase();
+          const ext = pattern.toLowerCase();
+          return fileName.endsWith(ext);
+        }
+
+        // Handle MIME types (e.g., "application/pdf")
         return f.type === pattern;
       });
     },

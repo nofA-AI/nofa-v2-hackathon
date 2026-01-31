@@ -9,6 +9,7 @@ import {
 } from '@/components/ai-elements/reasoning';
 import { Streamdown } from 'streamdown';
 import { code } from '../code';
+import { Download } from '@phosphor-icons/react';
 
 interface MessagePart {
   type: string;
@@ -48,6 +49,18 @@ export function MessageParts({
     onSendMessage(
       `Based on this news \n\n${title} \n\n ${content}\n\nGenerate a trading strategy`
     );
+  };
+
+  const handleDownloadFile = (url: string, filename: string) => {
+    // Create a temporary anchor element and trigger download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename || 'download';
+    link.target = '_blank';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -129,6 +142,8 @@ export function MessageParts({
         <div className={cn('grid gap-2', textContent ? 'mb-2' : '')}>
           {fileParts.map((file, index) => {
             const isImage = file.mediaType?.startsWith('image/');
+            const isPdf = file.mediaType === 'application/pdf';
+
             if (isImage) {
               return (
                 <img
@@ -141,15 +156,16 @@ export function MessageParts({
             }
 
             return (
-              <a
+              <Button
                 key={`${file.url}-${index}`}
-                href={file.url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
+                variant="outline"
+                size="sm"
+                onClick={() => handleDownloadFile(file.url || '', file.filename || 'download')}
+                className="inline-flex items-center gap-2 justify-start text-xs text-foreground"
               >
+                <Download className="w-3.5 h-3.5" weight="bold" />
                 {file.filename ?? 'Attachment'}
-              </a>
+              </Button>
             );
           })}
         </div>

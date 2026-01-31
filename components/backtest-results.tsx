@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, ArrowsClockwise, ChartLine, Calendar, Wallet, Warning } from '@phosphor-icons/react';
+import { Play, ArrowsClockwise, ChartLine, Calendar, Wallet, Warning, Sparkle } from '@phosphor-icons/react';
+import { jsPDF } from 'jspdf';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -32,9 +33,10 @@ import BigNumber from 'bignumber.js';
 
 interface BacktestResultsProps {
   onReadyToRunBacktest?: (runner: () => Promise<void>) => void;
+  onSendMessage?: (message: { text: string; files?: File[] }) => void;
 }
 
-export function BacktestResults({ onReadyToRunBacktest }: BacktestResultsProps) {
+export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: BacktestResultsProps) {
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [backtestParams, setBacktestParams] = useState<BacktestParams>(DEFAULT_BACKTEST_PARAMS);
@@ -67,13 +69,111 @@ export function BacktestResults({ onReadyToRunBacktest }: BacktestResultsProps) 
 
     try {
       const result = await runBacktestAPI(strategyTree, backtestParams);
-      addBacktestResult(currentStrategyId, result);
+      addBacktestResult(currentStrategyId, {
+        ...result,
+        strategyTree: strategyTree,
+      });
     } catch (error) {
       console.error('Backtest failed:', error);
     } finally {
       setIsRunning(false);
     }
   }, [currentStrategyId, isStrategyValid, strategyTree, backtestParams, addBacktestResult]);
+
+  const handleAnalyzeBacktest = useCallback(async (result: BacktestResult) => {
+    if (!onSendMessage) return;
+
+    // Generate markdown content
+    const markdown = generateBacktestMarkdown(result);
+
+    // Generate PDF using jsPDF
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    // Add title
+    doc.setFontSize(16);
+    doc.text(`Backtest Result Report - ${result.id}`, 10, 15);
+
+    // Add metadata
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Strategy: ${result.strategyTree?.name || 'Unknown'}`, 10, 25);
+    doc.text(`Date: ${dayjs(result.createdAt).format('YYYY-MM-DD HH:mm')}`, 10, 31);
+    doc.setTextColor(0);
+
+    // Split markdown into lines and add to PDF
+    const lines = markdown.split('\n');
+    let yPosition = 40;
+    const lineHeight = 5;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 10;
+
+    doc.setFontSize(11);
+    for (const line of lines) {
+      // Check if we need a new page
+      if (yPosition > pageHeight - margin) {
+        doc.addPage();
+        yPosition = margin;
+      }
+
+      // Handle headers (lines starting with #)
+      if (line.startsWith('# ')) {
+        doc.setFontSize(14);
+        doc.setFont('Helvetica', 'bold');
+        doc.text(line.replace('# ', ''), margin, yPosition);
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(11);
+        yPosition += lineHeight + 2;
+      } else if (line.startsWith('## ')) {
+        doc.setFontSize(12);
+        doc.setFont('Helvetica', 'bold');
+        doc.text(line.replace('## ', ''), margin, yPosition);
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(11);
+        yPosition += lineHeight + 1;
+      } else if (line.startsWith('### ')) {
+        doc.setFontSize(11);
+        doc.setFont('Helvetica', 'bold');
+        doc.text(line.replace('### ', ''), margin, yPosition);
+        doc.setFont('Helvetica', 'normal');
+        yPosition += lineHeight;
+      } else if (line.trim() === '') {
+        // Empty line
+        yPosition += lineHeight / 2;
+      } else if (line.startsWith('- ')) {
+        // List item - handle bold formatting within list (including the dash)
+        const parts = formatMarkdownText(line);
+        yPosition = renderFormattedText(doc, parts, margin, yPosition, 190, lineHeight);
+        yPosition += lineHeight / 2;
+      } else {
+        // Regular text - handle bold formatting
+        const parts = formatMarkdownText(line);
+        yPosition = renderFormattedText(doc, parts, margin, yPosition, 190, lineHeight);
+      }
+    }
+
+    // Generate PDF as Data URL
+    const pdfDataUrl = doc.output('datauristring');
+
+    // Create a File object with PDF data URL
+    const pdfBlob = doc.output('blob');
+    const file = new File([pdfBlob], `backtest-result-${result.id}.pdf`, { type: 'application/pdf' });
+
+    // Add data URL to file object for compatibility
+    Object.defineProperty(file, 'dataUrl', {
+      value: pdfDataUrl,
+      writable: false,
+    });
+
+    // Send message with attachment
+    onSendMessage({
+      text: 'Analyze backtest results and optimize strategy',
+      files: [file],
+    });
+  }, [onSendMessage]);
 
   useEffect(() => {
     if (onReadyToRunBacktest) {
@@ -159,6 +259,50 @@ export function BacktestResults({ onReadyToRunBacktest }: BacktestResultsProps) 
   return (
     <ScrollArea className="flex-1">
       <div className="p-4 space-y-6">
+        {/* Strategy Info */}
+        <div className="bg-card rounded-lg border border-border p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+            <h3 className="text-sm font-medium">Backtest Configuration</h3>
+            <span className="text-xs text-muted-foreground relative top-[1px]">
+              {dayjs(latestResult.createdAt).format('YYYY-MM-DD HH:mm')}
+            </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {onSendMessage && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleAnalyzeBacktest(latestResult)}
+                  className="gap-1.5 text-xs h-7"
+                >
+                  <Sparkle className="w-3.5 h-3.5" weight="fill" />
+                  Analyze Backtest
+                </Button>
+              )}
+
+            </div>
+          </div>
+          <div className="space-y-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>
+                {latestResult.params.startDate} to {latestResult.params.endDate} ({latestResult.params.timeframe})
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Wallet className="w-3.5 h-3.5" />
+              <span>
+                Initial Capital: ${latestResult.params.initialCapital.toLocaleString()} | Fee: {(latestResult.params.tradingFee * 100).toFixed(2)}%{latestResult.params.slippage != null ? ` | Slippage: ${(latestResult.params.slippage * 100).toFixed(2)}%` : ''}
+              </span>
+            </div>
+            { latestResult.strategyTree && <div className="flex items-center gap-2">
+              <ChartLine className="w-3.5 h-3.5" />
+              <span className="font-medium">Strategy: {latestResult.strategyTree.name}</span>
+            </div> }
+          </div>
+        </div>
+
         {/* Metrics */}
         <div className="grid grid-cols-3 gap-4">
           <MetricCard
@@ -443,3 +587,160 @@ function PerformanceChart({ data, benchmarkData }: PerformanceChartProps) {
   );
 }
 
+// Helper function to parse markdown text with **bold** formatting
+function formatMarkdownText(text: string): Array<{ text: string; bold: boolean }> {
+  const parts: Array<{ text: string; bold: boolean }> = [];
+  const regex = /\*\*(.*?)\*\*|([^\*]+)/g;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match[1]) {
+      // Bold text
+      parts.push({ text: match[1], bold: true });
+    } else if (match[2]) {
+      // Regular text
+      parts.push({ text: match[2], bold: false });
+    }
+  }
+
+  return parts.length === 0 ? [{ text, bold: false }] : parts;
+}
+
+// Helper function to render formatted text with bold styling
+function renderFormattedText(
+  doc: any,
+  parts: Array<{ text: string; bold: boolean }>,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number
+): number {
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 10;
+
+  // Combine all parts into one text for line splitting
+  const fullText = parts.map(p => p.text).join('');
+  const lines = doc.splitTextToSize(fullText, maxWidth);
+
+  let currentY = y;
+  let textIndex = 0;
+
+  for (const line of lines) {
+    if (currentY > pageHeight - margin) {
+      doc.addPage();
+      currentY = margin;
+    }
+
+    // Render each line with mixed formatting
+    renderLineWithFormatting(doc, line, parts, x, currentY);
+    currentY += lineHeight;
+  }
+
+  doc.setFont('Helvetica', 'normal');
+  return currentY;
+}
+
+// Helper function to render a single line with mixed formatting
+function renderLineWithFormatting(
+  doc: any,
+  line: string,
+  parts: Array<{ text: string; bold: boolean }>,
+  x: number,
+  y: number
+): void {
+  let currentX = x;
+  let remainingLine = line;
+  let partIndex = 0;
+  let partOffset = 0;
+
+  // Reconstruct the full text to track positions
+  let fullText = '';
+  for (const part of parts) {
+    fullText += part.text;
+  }
+
+  // Find which parts are in this line
+  let charCount = 0;
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const partLength = part.text.length;
+
+    if (charCount + partLength > fullText.indexOf(line)) {
+      // This part contains start of line
+      const startInPart = Math.max(0, fullText.indexOf(line) - charCount);
+
+      // Render from this part onwards
+      let lineRemaining = line;
+      let currentPartIdx = i;
+      let offsetInPart = startInPart;
+
+      while (lineRemaining && currentPartIdx < parts.length) {
+        const currentPart = parts[currentPartIdx];
+        const availableInPart = currentPart.text.length - offsetInPart;
+        const toRender = lineRemaining.substring(0, availableInPart);
+
+        if (toRender) {
+          doc.setFont('Helvetica', currentPart.bold ? 'bold' : 'normal');
+          doc.text(toRender, currentX, y);
+          currentX += doc.getStringUnitWidth(toRender) * doc.internal.getFontSize() / doc.internal.scaleFactor;
+          lineRemaining = lineRemaining.substring(toRender.length);
+        }
+
+        offsetInPart = 0;
+        currentPartIdx++;
+      }
+      return;
+    }
+    charCount += partLength;
+  }
+}
+
+// Helper function to generate markdown from backtest result
+function generateBacktestMarkdown(result: BacktestResult): string {
+  const { metrics, params, positions, strategyTree } = result;
+
+  let markdown = `# Backtest Result Report\n\n`;
+  markdown += `**Strategy**: ${strategyTree?.name || 'Unknown'}\n`;
+  markdown += `**Date**: ${dayjs(result.createdAt).format('YYYY-MM-DD HH:mm')}\n\n`;
+
+  markdown += `## Configuration\n\n`;
+  markdown += `- **Period**: ${params.startDate} to ${params.endDate}\n`;
+  markdown += `- **Timeframe**: ${params.timeframe}\n`;
+  markdown += `- **Initial Capital**: $${params.initialCapital.toLocaleString()}\n`;
+  markdown += `- **Trading Fee**: ${(params.tradingFee * 100).toFixed(2)}%\n`;
+  if (params.slippage != null) {
+    markdown += `- **Slippage**: ${(params.slippage * 100).toFixed(2)}%\n`;
+  }
+  markdown += `\n`;
+
+  markdown += `## Performance Metrics\n\n`;
+  markdown += `- **Total Return**: ${metrics.totalReturn >= 0 ? '+' : ''}${metrics.totalReturn.toFixed(2)}%\n`;
+  markdown += `- **Annualized Return**: ${metrics.annualizedReturn >= 0 ? '+' : ''}${metrics.annualizedReturn.toFixed(2)}%\n`;
+  markdown += `- **Max Drawdown**: ${metrics.maxDrawdown.toFixed(2)}%\n`;
+  markdown += `- **Sharpe Ratio**: ${metrics.sharpeRatio.toFixed(2)}\n`;
+  markdown += `- **Win Rate**: ${metrics.winRate.toFixed(1)}%\n`;
+  markdown += `- **Total Trades**: ${metrics.totalTrades}\n`;
+  markdown += `\n`;
+
+  if (positions.length > 0) {
+    markdown += `## Trade History\n\n`;
+    markdown += `| Date | Symbol | Side | Entry | Exit | P&L | Return % |\n`;
+    markdown += `|------|--------|------|-------|------|-----|----------|\n`;
+
+    positions.forEach(position => {
+      const pnlSign = position.pnl >= 0 ? '+' : '-';
+      const returnSign = position.pnlPercent >= 0 ? '+' : '';
+      markdown += `| ${position.date} | ${position.symbol} | ${position.direction} | $${position.entry.toFixed(2)} | $${position.exit.toFixed(2)} | ${pnlSign}$${Math.abs(position.pnl).toFixed(2)} | ${returnSign}${position.pnlPercent.toFixed(2)}% |\n`;
+    });
+    markdown += `\n`;
+  }
+
+  if (strategyTree) {
+    markdown += `## Strategy Tree\n\n`;
+    markdown += `\`\`\`json\n`;
+    markdown += JSON.stringify(strategyTree, null, 2);
+    markdown += `\n\`\`\`\n`;
+  }
+
+  return markdown;
+}

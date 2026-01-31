@@ -19,6 +19,7 @@ export default function HomePage() {
   const switchToEditorRef = useRef<(() => void) | null>(null);
   const switchToBacktestRef = useRef<(() => void) | null>(null);
   const runBacktestRef = useRef<(() => Promise<void>) | null>(null);
+  const sendMessageRef = useRef<((message: { text: string; files?: File[] }) => void) | null>(null);
   const hasInitializedGuide = useRef(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
@@ -193,6 +194,14 @@ export default function HomePage() {
     runBacktestRef.current = runner;
   };
 
+  const handleRegisterSendMessage = (sender: (message: { text: string; files?: File[] }) => void) => {
+    sendMessageRef.current = sender;
+  };
+
+  const handleSendMessage = (message: { text: string; files?: File[] }) => {
+    sendMessageRef.current?.(message);
+  };
+
   const handleApplyStrategy = () => {
     switchToEditorRef.current?.();
   };
@@ -302,6 +311,7 @@ export default function HomePage() {
             onApplyStrategy={handleApplyStrategy}
             onRunBacktest={handleRunBacktest}
             onSwitchToBacktest={switchToBacktest}
+            onRegisterSendMessage={handleRegisterSendMessage}
           />
           <MainContentArea
             width={100 - chatPanelWidth}
@@ -310,6 +320,7 @@ export default function HomePage() {
             onSwitchToEditor={handleSwitchToEditor}
             onSwitchToBacktest={handleSwitchToBacktest}
             onRegisterRunBacktest={handleRegisterRunBacktest}
+            onSendMessage={handleSendMessage}
           />
 
           {/* Guide View overlays on top when active */}

@@ -38,6 +38,7 @@ interface AIChatPanelProps {
   onApplyStrategy?: (strategy: StrategyTree) => void;
   onRunBacktest?: () => void;
   onSwitchToBacktest?: () => void;
+  onRegisterSendMessage?: (sender: (message: { text: string; files?: File[] }) => void) => void;
 }
 
 const quickStartPrompts = [
@@ -82,6 +83,7 @@ export function AIChatPanel({
   onApplyStrategy,
   onRunBacktest,
   onSwitchToBacktest,
+  onRegisterSendMessage,
 }: AIChatPanelProps) {
   const [loadingTextIndex, setLoadingTextIndex] = useState(0);
   const [input, setInput] = useState('');
@@ -303,6 +305,49 @@ export function AIChatPanel({
     setTimeout(() => {
       scrollToBottom(true)
     })
+  };
+
+  // Register handleSend with parent
+  useEffect(() => {
+    if (onRegisterSendMessage) {
+      onRegisterSendMessage(async (message) => {
+        // Convert File[] to FileUIPart[] with data URLs
+        const fileUIParts = await Promise.all(
+          (message.files || []).map(async (file) => {
+            // Check if file already has a dataUrl property
+            const fileWithDataUrl = file as any;
+            const url = fileWithDataUrl.dataUrl || await fileToDataUrl(file);
+
+            return {
+              type: 'file' as const,
+              url,
+              mediaType: file.type || 'text/plain',
+              filename: file.name,
+            };
+          })
+        );
+
+        handleSend({
+          text: message.text,
+          files: fileUIParts as any,
+        });
+        // Switch to chat panel and scroll
+        setTimeout(() => {
+          scrollToBottom(true);
+        }, 100);
+      });
+    }
+  }, [onRegisterSendMessage, handleSend]);
+
+  // Helper function to convert File to Data URL
+  const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   useEffect(() => {

@@ -13,9 +13,10 @@ interface MainContentAreaProps {
   onSwitchToEditor?: (handler: () => void) => void;
   onSwitchToBacktest?: (handler: () => void) => void;
   onRegisterRunBacktest?: (runner: () => Promise<void>) => void;
+  onSendMessage?: (message: { text: string; files?: File[] }) => void;
 }
 
-export function MainContentArea({ width, onResizeStart, onCreateWithAI, onSwitchToEditor, onSwitchToBacktest, onRegisterRunBacktest }: MainContentAreaProps) {
+export function MainContentArea({ width, onResizeStart, onCreateWithAI, onSwitchToEditor, onSwitchToBacktest, onRegisterRunBacktest, onSendMessage }: MainContentAreaProps) {
   const [activeTab, setActiveTab] = useState('editor');
   const { currentStrategyId, createStrategy } = useStrategyStore();
 
@@ -120,7 +121,7 @@ export function MainContentArea({ width, onResizeStart, onCreateWithAI, onSwitch
         </TabsContent>
 
         <TabsContent value="backtest" className="flex-1 m-0 overflow-auto data-[state=inactive]:hidden">
-          <BacktestResults onReadyToRunBacktest={onRegisterRunBacktest} />
+          <BacktestResults onReadyToRunBacktest={onRegisterRunBacktest} onSendMessage={onSendMessage} />
         </TabsContent>
       </Tabs>
     </div>
