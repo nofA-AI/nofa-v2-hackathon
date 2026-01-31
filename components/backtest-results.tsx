@@ -263,7 +263,7 @@ export function BacktestResults({ onReadyToRunBacktest }: BacktestResultsProps) 
                           position.pnl >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
                         )}
                       >
-                        {position.pnl >= 0 ? '+' : ''}${Math.abs(position.pnl).toFixed(2)}
+                        {position.pnl >= 0 ? '+' : '-'}${Math.abs(position.pnl).toFixed(2)}
                       </TableCell>
                       <TableCell
                         className={cn(
