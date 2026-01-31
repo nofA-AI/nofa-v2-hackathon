@@ -169,7 +169,7 @@ export const runBacktest = async (
 
     // Calculate annualized return
     const daysCount = dayjs(params.endDate).diff(dayjs(params.startDate), 'day') || 1;
-    const annualizedReturn = (data.kpis.total_pnl / initialCapital) * (365 / daysCount);
+    const annualizedReturn = totalReturn * (365 / daysCount);
 
     // Generate benchmark data (simple market performance)
     const benchmarkData: { date: string; value: number }[] = [];
@@ -185,6 +185,7 @@ export const runBacktest = async (
     return {
       strategyId: data.request_id,
       params,
+      strategyTree,
       metrics: {
         totalReturn,
         annualizedReturn,
