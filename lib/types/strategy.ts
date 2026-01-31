@@ -161,7 +161,7 @@ export const DEFAULT_BACKTEST_PARAMS: BacktestParams = {
 export interface BacktestResult {
   id: string;
   strategyId: string;
-  strategyTree: StrategyTree;
+  strategyTree?: StrategyTree;
   params: BacktestParams;
   metrics: {
     totalReturn: number;

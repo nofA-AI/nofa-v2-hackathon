@@ -36,10 +36,13 @@ interface BacktestApiResponse {
   strategy_name: string;
   kpis: {
     total_pnl: number;
+    total_return_pct?: number;
     max_drawdown_pct: number;
     total_trades: number;
     profitable_trades: number;
+    win_rate?: number;
     sharpe_ratio: number | null;
+    annualized_return_pct?: number;
   };
   trades: Array<{
     open_time: string;
@@ -167,9 +170,11 @@ export const runBacktest = async (
       pnlPercent: trade.return_pct,
     }));
 
-    // Calculate annualized return
+    // Calculate annualized return (use API value if available)
     const daysCount = dayjs(params.endDate).diff(dayjs(params.startDate), 'day') || 1;
-    const annualizedReturn = totalReturn * (365 / daysCount);
+    const annualizedReturn = data.kpis.annualized_return_pct !== undefined
+      ? data.kpis.annualized_return_pct
+      : totalReturn * (365 / daysCount);
 
     // Generate benchmark data (simple market performance)
     const benchmarkData: { date: string; value: number }[] = [];
