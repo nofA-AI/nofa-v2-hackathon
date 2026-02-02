@@ -611,7 +611,7 @@ export function IfElseBlockNode({
                     </div>
 
                     {/* Row 2: Operator, Fixed Value Toggle */}
-                    <div className="flex jus items-end gap-3 my-4">
+                    <div className="flex justify-center items-end gap-3 my-4">
                       <div className="space-y-1">
                         <Label className="text-xs">Operator</Label>
                         <Select
@@ -620,7 +620,7 @@ export function IfElseBlockNode({
                             updateCondition(index, 'operator', v)
                           }
                         >
-                          <SelectTrigger className="h-8 w-34">
+                          <SelectTrigger className="h-8 w-22">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -632,12 +632,10 @@ export function IfElseBlockNode({
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">Value Type</Label>
-                        <div className='flex items-center gap-2 px-2 py-1.5 h-9 rounded border border-input'>
-                        <Checkbox
-                          id={`fixed-value-${index}`}
-                          checked={typeof condition.value === 'number'}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
+                        <Select
+                          value={typeof condition.value === 'number' ? 'fixed' : 'indicator'}
+                          onValueChange={(v: 'fixed' | 'indicator') => {
+                            if (v === 'fixed') {
                               updateCondition(index, 'value', 0);
                             } else {
                               const indicatorValue: ConditionValueIndicator = {
@@ -649,14 +647,15 @@ export function IfElseBlockNode({
                               updateCondition(index, 'value', indicatorValue);
                             }
                           }}
-                        />
-                        <Label
-                          htmlFor={`fixed-value-${index}`}
-                          className="text-xs font-medium cursor-pointer"
                         >
-                          Fixed
-                        </Label>
-                        </div>
+                          <SelectTrigger className="h-8 w-28">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="fixed">Fixed</SelectItem>
+                            <SelectItem value="indicator">Indicator</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
 
