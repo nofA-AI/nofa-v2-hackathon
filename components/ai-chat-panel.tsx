@@ -32,6 +32,7 @@ import { Shimmer } from '@/components/ai-elements/shimmer';
 import { EmptyStatus } from './ai-chat-panel/empty-status';
 import { MessageParts } from './ai-chat-panel/message-parts';
 import { StrategyCard } from './ai-chat-panel/strategy-card';
+import { set } from 'date-fns';
 
 interface AIChatPanelProps {
   width?: number;
@@ -92,6 +93,7 @@ export function AIChatPanel({
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
   const [isRunningBacktest, setIsRunningBacktest] = useState(false);
   const [backtestParams, setBacktestParams] = useState<BacktestParams>(DEFAULT_BACKTEST_PARAMS);
+  const [backtestStrategy, setBacktestStrategy] = useState<StrategyTree | undefined>(undefined);
 
   const loadingTexts = [
     'Analyzing your strategy...',
@@ -456,30 +458,29 @@ export function AIChatPanel({
     toast.success('Strategy applied successfully!');
   };
 
-  const handleRunBacktest = async () => {
+  const handleRunBacktest = async (strategyTree?: StrategyTree) => {
     if (!currentStrategyId) return;
 
-    const { strategyTree } =
-      useStrategyStore
+    const tree = strategyTree || useStrategyStore
         .getState()
-        .strategies.find((s) => s.id === currentStrategyId) || {};
+        .strategies.find((s) => s.id === currentStrategyId)?.strategyTree;
 
-    if (!strategyTree) return;
+    if (!tree) return;
 
     setIsRunningBacktest(true);
 
     try {
-      const result = await runBacktest(strategyTree, backtestParams);
-      addBacktestResult(currentStrategyId, result);
-      toast.success('Backtest completed successfully!');
-      setBacktestDialogOpen(false);
-      // Switch to backtest tab after successful backtest
-      onSwitchToBacktest?.();
+        const result = await runBacktest(tree, backtestParams);
+        addBacktestResult(currentStrategyId, result);
+        toast.success('Backtest completed successfully!');
+        setBacktestDialogOpen(false);
+        // Switch to backtest tab after successful backtest
+        onSwitchToBacktest?.();
     } catch (error) {
-      console.error('Backtest failed:', error);
-      toast.error('Backtest failed. Please try again.');
+        console.error('Backtest failed:', error);
+        toast.error('Backtest failed. Please try again.');
     } finally {
-      setIsRunningBacktest(false);
+        setIsRunningBacktest(false);
     }
   };
 
@@ -531,7 +532,10 @@ export function AIChatPanel({
                 key={message.id}
                 message={message}
                 onApplyStrategy={handleApplyStrategy}
-                onOpenBacktestDialog={() => setBacktestDialogOpen(true)}
+                onOpenBacktestDialog={(strategy) => {
+                  setBacktestStrategy(strategy);
+                  setBacktestDialogOpen(true)
+                }}
                 isGeneratingResponse={isGeneratingResponse}
                 onSendMessage={handleSend}
               />
@@ -577,7 +581,7 @@ export function AIChatPanel({
         onOpenChange={setBacktestDialogOpen}
         params={backtestParams}
         onParamsChange={setBacktestParams}
-        onRun={handleRunBacktest}
+        onRun={() => handleRunBacktest(backtestStrategy)}
         isRunning={isRunningBacktest}
       />
     </div>
@@ -587,7 +591,7 @@ export function AIChatPanel({
 interface ChatMessageBubbleProps {
   message: UIMessage;
   onApplyStrategy: (strategy: StrategyTree) => void;
-  onOpenBacktestDialog?: () => void;
+  onOpenBacktestDialog?: (strategy?: StrategyTree) => void;
   isGeneratingResponse?: boolean;
   onSendMessage: (message: PromptInputMessage | string) => void;
 }
@@ -774,7 +778,7 @@ function ChatMessageBubble({
           isPreGenerated={isPreGenerated}
           hasApplied={hasApplied}
           onApply={handleApply}
-          onOpenBacktestDialog={() => onOpenBacktestDialog?.()}
+          onOpenBacktestDialog={(strategy) => onOpenBacktestDialog?.(strategy)}
         />
       </div>
     </div>

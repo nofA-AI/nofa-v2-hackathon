@@ -10,7 +10,7 @@ interface StrategyCardProps {
   isPreGenerated: boolean;
   hasApplied: boolean;
   onApply: () => void;
-  onOpenBacktestDialog: () => void;
+  onOpenBacktestDialog: (strategy?: StrategyTree) => void;
 }
 
 export function StrategyCard({
@@ -51,12 +51,12 @@ export function StrategyCard({
           {hasApplied ? 'Strategy Applied' : 'Apply Strategy'}
         </Button>
       )}
-      {(hasApplied || isPreGenerated) && (
+      {(extractedStrategy) && (
         <Button
           size="sm"
           variant="outline"
-          className={cn('w-full gap-2', !isPreGenerated && 'mt-2')}
-          onClick={() => onOpenBacktestDialog()}
+          className={cn('w-full gap-2', 'mt-2')}
+          onClick={() => onOpenBacktestDialog(extractedStrategy)}
         >
           <Play className="w-4 h-4" />
           Run Backtest

@@ -68,7 +68,7 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
     : currentResults[currentResults.length - 1];
 
   // Check if strategy is valid for backtesting
-  const strategyTree = history.present;
+  const strategyTree = latestResult?.strategyTree || history.present;
   const mainDecision = Array.isArray(strategyTree.mainDecision)
     ? strategyTree.mainDecision[0]
     : strategyTree.mainDecision;
@@ -277,7 +277,7 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
     <ScrollArea className="flex-1">
       <div className="p-4 space-y-6">
         {/* Result Selector */}
-        {currentResults.length > 1 && (
+        {currentResults.length >= 1 && (
           <div className="bg-card rounded-lg mb-2">
             <Select
               value={selectedResultIndex.toString()}
@@ -292,11 +292,22 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
                   const truncatedName = strategyName.length > 40 ? strategyName.slice(0, 40) + '...' : strategyName;
                   const returnValue = result.metrics.totalReturn;
                   const returnText = `${returnValue >= 0 ? '+' : ''}${returnValue.toFixed(2)}%`;
+
+                  // Format date range
+                  const startDate = dayjs(result.params.startDate);
+                  const endDate = dayjs(result.params.endDate);
+                  const isSameYear = startDate.year() === endDate.year();
+                  const dateRange = isSameYear
+                    ? `${startDate.format('YYYY-MM-DD')} to ${endDate.format('MM-DD')}`
+                    : `${startDate.format('YYYY-MM-DD')} to ${endDate.format('YYYY-MM-DD')}`;
+
                   return (
                     <SelectItem key={index} value={index.toString()}>
                       <span className="flex items-center gap-2">
                         <span>{truncatedName}</span>
-                        <span className="text-xs text-muted-foreground">{dayjs(result.createdAt).format('YYYY-MM-DD HH:mm')}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {dateRange} · {result.params.timeframe}
+                        </span>
                         <span className={cn(
                           "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold",
                           returnValue >= 0
@@ -318,7 +329,7 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
         <div className="bg-card rounded-lg border border-border p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-            <h3 className="text-sm font-medium">Backtest Configuration</h3>
+            <h3 className="text-sm font-medium">Backtest Info</h3>
             <span className="text-xs text-muted-foreground relative top-[1px]">
               {dayjs(latestResult.createdAt).format('YYYY-MM-DD HH:mm')}
             </span>
