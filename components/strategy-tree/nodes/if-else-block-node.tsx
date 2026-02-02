@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import {
   IfElseBlock,
@@ -45,6 +46,7 @@ import {
   CompareOperator,
   LogicalOperator,
   Symbol as SymbolType,
+  ConditionValueIndicator,
   AVAILABLE_INDICATORS,
   AVAILABLE_SYMBOLS,
 } from '@/lib/types/strategy';
@@ -84,11 +86,13 @@ export function IfElseBlockNode({
   };
 
   const formatCondition = (condition: ConditionItem) => {
-    const valueStr =
-      typeof condition.value === 'number'
-        ? condition.value
-        : `${condition.value.indicator}(${condition.value.period})`;
-    return `${condition.indicator}(period=${condition.period}) ${condition.operator.toLowerCase()} ${valueStr}`;
+    let valueStr: string;
+    if (typeof condition.value === 'number') {
+      valueStr = condition.value.toString();
+    } else {
+      valueStr = `${condition.value.indicator}(${condition.value.period})`;
+    }
+    return `${condition.indicator}(${condition.period}) ${condition.operator.toLowerCase()} ${valueStr}`;
   };
 
   const handleAddThenAction = () => {
@@ -541,8 +545,10 @@ export function IfElseBlockNode({
                     >
                       <Trash className="w-4 h-4" />
                     </Button>
+
+                    {/* Row 1: Indicator, Period, Symbol */}
                     <div className="flex gap-3">
-                      <div className="space-y-1">
+                      <div className="space-y-1 flex-1">
                         <Label className="text-xs">Indicator</Label>
                         <Select
                           value={condition.indicator}
@@ -550,7 +556,7 @@ export function IfElseBlockNode({
                             updateCondition(index, 'indicator', v)
                           }
                         >
-                          <SelectTrigger className="h-8">
+                          <SelectTrigger className="h-9 w-full">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -562,11 +568,11 @@ export function IfElseBlockNode({
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-1 flex-1">
                         <Label className="text-xs">Period</Label>
                         <Input
                           type="number"
-                          className="h-8"
+                          className="h-9"
                           value={condition.period}
                           onChange={(e) =>
                             updateCondition(
@@ -577,7 +583,7 @@ export function IfElseBlockNode({
                           }
                         />
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-1 flex-1">
                         <Label className="text-xs">Symbol</Label>
                         <Select
                           value={condition.symbol}
@@ -602,6 +608,10 @@ export function IfElseBlockNode({
                           </SelectContent>
                         </Select>
                       </div>
+                    </div>
+
+                    {/* Row 2: Operator, Fixed Value Toggle */}
+                    <div className="flex jus items-end gap-3 my-4">
                       <div className="space-y-1">
                         <Label className="text-xs">Operator</Label>
                         <Select
@@ -610,7 +620,7 @@ export function IfElseBlockNode({
                             updateCondition(index, 'operator', v)
                           }
                         >
-                          <SelectTrigger className="h-8">
+                          <SelectTrigger className="h-8 w-34">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -620,16 +630,44 @@ export function IfElseBlockNode({
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1 col-span-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Value Type</Label>
+                        <div className='flex items-center gap-2 px-2 py-1.5 h-9 rounded border border-input'>
+                        <Checkbox
+                          id={`fixed-value-${index}`}
+                          checked={typeof condition.value === 'number'}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              updateCondition(index, 'value', 0);
+                            } else {
+                              const indicatorValue: ConditionValueIndicator = {
+                                type: 'CONDITION_VALUE_INDICATOR',
+                                indicator: 'MA',
+                                period: 20,
+                                symbol: 'BTC/USDT',
+                              };
+                              updateCondition(index, 'value', indicatorValue);
+                            }
+                          }}
+                        />
+                        <Label
+                          htmlFor={`fixed-value-${index}`}
+                          className="text-xs font-medium cursor-pointer"
+                        >
+                          Fixed
+                        </Label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Row 3: Value Input (based on type) */}
+                    {typeof condition.value === 'number' ? (
+                      <div className="space-y-1">
                         <Label className="text-xs">Value</Label>
                         <Input
                           type="number"
                           className="h-8"
-                          value={
-                            typeof condition.value === 'number'
-                              ? condition.value
-                              : 0
-                          }
+                          value={condition.value}
                           onChange={(e) =>
                             updateCondition(
                               index,
@@ -639,10 +677,86 @@ export function IfElseBlockNode({
                           }
                         />
                       </div>
-                    </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex gap-3">
+                          <div className="space-y-1 flex-1">
+                            <Label className="text-xs">Indicator</Label>
+                            <Select
+                              value={(condition.value as ConditionValueIndicator).indicator}
+                              onValueChange={(v: IndicatorType) => {
+                                const currentValue = condition.value as ConditionValueIndicator;
+                                const newValue: ConditionValueIndicator = {
+                                  ...currentValue,
+                                  indicator: v,
+                                };
+                                updateCondition(index, 'value', newValue);
+                              }}
+                            >
+                              <SelectTrigger className="h-8 w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {AVAILABLE_INDICATORS.map((ind) => (
+                                  <SelectItem key={ind} value={ind}>
+                                    {ind}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1 flex-1">
+                            <Label className="text-xs">Period</Label>
+                            <Input
+                              type="number"
+                              className="h-9"
+                              value={(condition.value as ConditionValueIndicator).period}
+                              onChange={(e) => {
+                                const currentValue = condition.value as ConditionValueIndicator;
+                                const newValue: ConditionValueIndicator = {
+                                  ...currentValue,
+                                  period: Number(e.target.value),
+                                };
+                                updateCondition(index, 'value', newValue);
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-1 flex-1">
+                            <Label className="text-xs">Symbol</Label>
+                            <Select
+                              value={(condition.value as ConditionValueIndicator).symbol}
+                              onValueChange={(v: SymbolType) => {
+                                const currentValue = condition.value as ConditionValueIndicator;
+                                const newValue: ConditionValueIndicator = {
+                                  ...currentValue,
+                                  symbol: v,
+                                };
+                                updateCondition(index, 'value', newValue);
+                              }}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {AVAILABLE_SYMBOLS.map((sym) => (
+                                  <SelectItem key={sym} value={sym}>
+                                    {sym}
+                                  </SelectItem>
+                                ))}
+                                {(condition.value as ConditionValueIndicator).symbol && !AVAILABLE_SYMBOLS.includes((condition.value as ConditionValueIndicator).symbol) && (
+                                  <SelectItem value={(condition.value as ConditionValueIndicator).symbol}>
+                                    {(condition.value as ConditionValueIndicator).symbol}
+                                  </SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   {index < editValues.conditions.length - 1 && (
-                    <div className="flex justify-center py-1 -mb-3">
+                    <div className="flex justify-center py-1 -mb-2 mt-1">
                       <span className="text-xs font-semibold text-primary px-2 py-0.5 bg-primary/10 rounded">
                         {editValues.logicalOperator || 'AND'}
                       </span>

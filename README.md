@@ -109,14 +109,14 @@ interface RiskManagement {
 interface ConditionItem {
   /** 指标类型 */
   indicator: IndicatorType;
-  /** 指标周期（1-1000，如EMA10、RSI14） */
+  /** 指标周期（K线数量，1-1000，如EMA10表示10根K线、RSI14表示14根K线，单位由交易所和时间框架决定） */
   period: number;
   /** 目标标的 */
   symbol: Symbol;
   /** 判断运算符 */
   operator: CompareOperator;
   /** 比较值（固定值或指标引用） */
-  value: number | { indicator: IndicatorType; period: number; symbol: Symbol };
+  value: number | { type: 'CONDITION_VALUE_INDICATOR', indicator: IndicatorType; period: number; symbol: Symbol };
 }
 
 /** IF/ELSE 条件块（支持单条件/多条件 AND/OR 逻辑，动作支持多Block） */
@@ -177,7 +177,7 @@ type StrategyTreeJSON = Omit<StrategyTree, 'description'> & {
 | `ifElseBlock.elseAction` | 允许值为 'NO ACTION' 或非空数组；数组元素必须是 type 为 'ACTION_BLOCK' 或 'IF_ELSE_BLOCK' 的合法节点 | 动作配置不合法：支持 NO ACTION 或非空的多Block数组（ACTION_BLOCK/IF_ELSE_BLOCK 节点） |
 | `conditionItem.type` | 固定为 'CONDITION_ITEM' | 单条件节点 type 必须为 'CONDITION_ITEM' |
 | `conditionItem.indicator` | 必须为预定义 IndicatorType 枚举值之一 | 不支持该指标，请选择合法指标类型 |
-| `conditionItem.period` | 1 ≤ period ≤ 1000 | 指标周期必须在 1-1000 之间 |
+| `conditionItem.period` | 1 ≤ period ≤ 1000；单位为 K 线根数，由交易所和时间框架决定具体时间长度（如 1H 时间框架下 period=10 表示 10 小时） | 指标周期必须在 1-1000 之间；period 表示用于计算指标的 K 线数量 |
 | `conditionItem.symbol` | 预定义枚举值或符合 XXX/USDT 格式的合法代币对 | 标的格式不合法，需符合 XXX/USDT 规范 |
 | `conditionItem.operator` | 必须为 'Greater Than'、'Less Than' 或 'Equal' 之一 | 不支持该运算符，请选择合法判断方式 |
 | `conditionItem.value` | 若为对象，type 必须为 'CONDITION_VALUE_INDICATOR' 且符合指标引用结构；若为数值，需为有效数字 | 条件比较值不合法，支持固定数值或合法的指标引用 |
