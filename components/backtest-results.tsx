@@ -27,6 +27,13 @@ import { useStrategyStore } from '@/lib/store/strategy-store';
 import { BacktestParams, BacktestResult, DEFAULT_BACKTEST_PARAMS } from '@/lib/types/strategy';
 import { runBacktest as runBacktestAPI } from '@/lib/backtest';
 import { BacktestDialog } from '@/components/backtest-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import * as echarts from 'echarts';
 import dayjs from 'dayjs';
 import BigNumber from 'bignumber.js';
@@ -40,6 +47,7 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [backtestParams, setBacktestParams] = useState<BacktestParams>(DEFAULT_BACKTEST_PARAMS);
+  const [selectedResultIndex, setSelectedResultIndex] = useState<number>(-1);
 
   const { currentStrategyId, backtestResults, addBacktestResult, history } =
     useStrategyStore();
@@ -48,7 +56,16 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
     ? backtestResults[currentStrategyId] || []
     : [];
 
-  const latestResult = currentResults[currentResults.length - 1];
+  // Auto-select latest result when results change
+  useEffect(() => {
+    if (currentResults.length > 0) {
+      setSelectedResultIndex(currentResults.length - 1);
+    }
+  }, [currentResults.length]);
+
+  const latestResult = selectedResultIndex >= 0 && selectedResultIndex < currentResults.length
+    ? currentResults[selectedResultIndex]
+    : currentResults[currentResults.length - 1];
 
   // Check if strategy is valid for backtesting
   const strategyTree = history.present;
@@ -259,6 +276,44 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
   return (
     <ScrollArea className="flex-1">
       <div className="p-4 space-y-6">
+        {/* Result Selector */}
+        {currentResults.length > 1 && (
+          <div className="bg-card rounded-lg mb-2">
+            <Select
+              value={selectedResultIndex.toString()}
+              onValueChange={(value) => setSelectedResultIndex(parseInt(value))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {currentResults.map((result, index) => {
+                  const strategyName = result.strategyTree?.name || `Strategy ${result.strategyId}`;
+                  const truncatedName = strategyName.length > 40 ? strategyName.slice(0, 40) + '...' : strategyName;
+                  const returnValue = result.metrics.totalReturn;
+                  const returnText = `${returnValue >= 0 ? '+' : ''}${returnValue.toFixed(2)}%`;
+                  return (
+                    <SelectItem key={index} value={index.toString()}>
+                      <span className="flex items-center gap-2">
+                        <span>{truncatedName}</span>
+                        <span className="text-xs text-muted-foreground">{dayjs(result.createdAt).format('YYYY-MM-DD HH:mm')}</span>
+                        <span className={cn(
+                          "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold",
+                          returnValue >= 0
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                            : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                        )}>
+                          Return: {returnText}
+                        </span>
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {/* Strategy Info */}
         <div className="bg-card rounded-lg border border-border p-4">
           <div className="flex items-center justify-between mb-2">
@@ -296,10 +351,10 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
                 Initial Capital: ${latestResult.params.initialCapital.toLocaleString()} | Fee: {(latestResult.params.tradingFee * 100).toFixed(2)}%{latestResult.params.slippage != null ? ` | Slippage: ${(latestResult.params.slippage * 100).toFixed(2)}%` : ''}
               </span>
             </div>
-            { latestResult.strategyTree && <div className="flex items-center gap-2">
+            {/* { latestResult.strategyTree && <div className="flex items-center gap-2">
               <ChartLine className="w-3.5 h-3.5" />
               <span className="font-medium">Strategy: {latestResult.strategyTree.name}</span>
-            </div> }
+            </div> } */}
           </div>
         </div>
 

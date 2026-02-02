@@ -218,7 +218,9 @@ export function AIChatPanel({
     if (!container) return;
 
     const observer = new MutationObserver(() => {
-      scrollToBottom(isGeneratingResponse);
+      if (isGeneratingResponse) {
+        scrollToBottom(isGeneratingResponse);
+      }
     });
 
     observer.observe(container, {
