@@ -2,8 +2,7 @@
 
 import React from "react"
 
-import { useRef, useEffect, useState } from 'react';
-import { ArrowCounterClockwise, ArrowClockwise, User } from '@phosphor-icons/react';
+import { User } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -13,45 +12,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useStrategyStore } from '@/lib/store/strategy-store';
 
 export function Header() {
-  const {
-    history,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
-    updateStrategyName,
-    currentStrategyId
-  } = useStrategyStore();
-
-  const [isEditing, setIsEditing] = useState(false);
-  const nameRef = useRef<HTMLSpanElement>(null);
-
-  const strategyName = history.present.name;
-
-  useEffect(() => {
-    if (nameRef.current && !isEditing) {
-      nameRef.current.textContent = strategyName;
-    }
-  }, [strategyName, isEditing]);
-
-  const handleNameBlur = () => {
-    setIsEditing(false);
-    const newName = nameRef.current?.textContent?.trim() || 'Untitled Strategy';
-    if (newName !== strategyName) {
-      updateStrategyName(newName);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      nameRef.current?.blur();
-    }
-  };
-
   return (
     <header className="flex items-center justify-between h-14 px-4 border-b border-border bg-card">
       <div className="flex items-center gap-4">
@@ -59,50 +21,6 @@ export function Header() {
         <div className="flex items-center gap-2">
           <img src="/nofa-logo.svg" alt="NOFA Logo" className="h-[27px]" />
         </div>
-
-        {/* Strategy Name (Editable) */}
-        {currentStrategyId && (
-          <>
-            <div className="w-px h-6 bg-border" />
-            <span
-              ref={nameRef}
-              contentEditable
-              suppressContentEditableWarning
-              onFocus={() => setIsEditing(true)}
-              onBlur={handleNameBlur}
-              onKeyDown={handleKeyDown}
-              className="text-sm text-muted-foreground hover:text-foreground focus:text-foreground focus:outline-none cursor-text px-2 py-1 rounded hover:bg-muted focus:bg-muted min-w-[100px]"
-            >
-              {strategyName}
-            </span>
-          </>
-        )}
-
-        {/* Undo/Redo Buttons */}
-        {currentStrategyId && (
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={undo}
-              disabled={!canUndo()}
-              className="h-8 px-2 text-muted-foreground hover:text-foreground"
-            >
-              <ArrowCounterClockwise className="w-4 h-4 mr-1" />
-              Undo
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={redo}
-              disabled={!canRedo()}
-              className="h-8 px-2 text-muted-foreground hover:text-foreground"
-            >
-              <ArrowClockwise className="w-4 h-4 mr-1" />
-              Redo
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* Right Side - User Avatar */}

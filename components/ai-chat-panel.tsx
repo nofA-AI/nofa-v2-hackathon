@@ -117,10 +117,19 @@ export function AIChatPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(false);
 
-  const { currentStrategyId, updateStrategyTree, addBacktestResult } =
-    useStrategyStore();
+  const {
+    history,
+    updateStrategyName,
+    currentStrategyId,
+    updateStrategyTree,
+    addBacktestResult,
+  } = useStrategyStore();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const nameRef = useRef<HTMLSpanElement>(null);
 
   const storageKey = getStorageKey(currentStrategyId);
+  const strategyName = history.present.name;
 
   const { messages, setMessages, sendMessage, status, stop } = useChat({
     id: currentStrategyId || 'default',
@@ -164,6 +173,27 @@ export function AIChatPanel({
   });
 
   const isGeneratingResponse = ['streaming', 'submitted'].includes(status);
+
+  useEffect(() => {
+    if (nameRef.current && !isEditing) {
+      nameRef.current.textContent = strategyName;
+    }
+  }, [strategyName, isEditing]);
+
+  const handleNameBlur = () => {
+    setIsEditing(false);
+    const newName = nameRef.current?.textContent?.trim() || 'Untitled Strategy';
+    if (newName !== strategyName) {
+      updateStrategyName(newName);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      nameRef.current?.blur();
+    }
+  };
 
   useEffect(() => {
     if (!isGeneratingResponse) return;
@@ -508,11 +538,33 @@ export function AIChatPanel({
       style={width ? { flex: `0 0 ${width}%` } : {}}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-border flex-shrink-0 h-[49px]">
-        <h2 className="font-medium text-sm flex items-center gap-2">
-          <Sparkle className="w-4 h-4 text-primary" weight="fill" />
-          Strategy AI
-        </h2>
+      <div className="flex items-center justify-between gap-2 p-3 border-b border-border flex-shrink-0 h-[49px]">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <h2 className="font-medium text-sm flex items-center gap-2 flex-shrink-0">
+            <Sparkle className="w-4 h-4 text-primary" weight="fill" />
+            Strategy AI
+          </h2>
+
+          {currentStrategyId && (
+            <>
+              <div className="w-px h-6 bg-border flex-shrink-0" />
+              <span
+                ref={nameRef}
+                contentEditable
+                suppressContentEditableWarning
+                onFocus={() => setIsEditing(true)}
+                onBlur={handleNameBlur}
+                onKeyDown={handleKeyDown}
+                title={strategyName}
+                className="text-sm text-muted-foreground hover:text-foreground focus:text-foreground focus:outline-none cursor-text px-2 py-1 rounded hover:bg-muted focus:bg-muted min-w-[80px] flex-1 truncate"
+              >
+                {strategyName}
+              </span>
+            </>
+          )}
+        </div>
+
+        <div />
       </div>
 
       {/* Messages */}

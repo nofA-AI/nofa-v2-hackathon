@@ -3,7 +3,17 @@
 import React from "react"
 
 import { useState, useCallback } from 'react';
-import { CaretDown, CaretRight, Plus, Sparkle, ClipboardText, Play, ArrowsClockwise } from '@phosphor-icons/react';
+import {
+  CaretDown,
+  CaretRight,
+  Plus,
+  Sparkle,
+  ClipboardText,
+  Play,
+  ArrowsClockwise,
+  ArrowCounterClockwise,
+  ArrowClockwise,
+} from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -52,7 +62,16 @@ interface StrategyTreeEditorProps {
 }
 
 export function StrategyTreeEditor({ onCreateWithAI, onSwitchToBacktest }: StrategyTreeEditorProps) {
-  const { history, currentStrategyId, updateStrategyTree, addBacktestResult } = useStrategyStore();
+  const {
+    history,
+    currentStrategyId,
+    updateStrategyTree,
+    addBacktestResult,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+  } = useStrategyStore();
   const strategyTree = history.present;
 
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
@@ -215,15 +234,38 @@ export function StrategyTreeEditor({ onCreateWithAI, onSwitchToBacktest }: Strat
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-border flex-shrink-0 h-[49px]">
         <h2 className="font-medium text-sm">Strategy Tree</h2>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-2 h-7 hover:bg-primary/10 hover:text-primary"
-          onClick={() => setPasteDialogOpen(true)}
-        >
-          <ClipboardText className="w-4 h-4" />
-          Import
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={undo}
+            disabled={!canUndo()}
+            className="h-8 px-2 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowCounterClockwise className="w-4 h-4 mr-1" />
+            <span className="hidden sm:inline">Undo</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={redo}
+            disabled={!canRedo()}
+            className="h-8 px-2 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowClockwise className="w-4 h-4 mr-1" />
+            <span className="hidden sm:inline">Redo</span>
+          </Button>
+          <div className="w-px h-6 bg-border mx-1" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2 h-7 hover:bg-primary/10 hover:text-primary"
+            onClick={() => setPasteDialogOpen(true)}
+          >
+            <ClipboardText className="w-4 h-4" />
+            Import
+          </Button>
+        </div>
       </div>
 
       {/* Tree Content */}
