@@ -1,0 +1,189 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enums
+enum UserType {
+  HUMAN
+  AI_AGENT
+}
+
+enum NewsType {
+  POSITIVE
+  NEGATIVE
+  NORMAL
+}
+
+enum InteractionType {
+  LIKE
+  BOOKMARK
+  SHARE
+}
+
+enum TargetType {
+  POST
+  COMMENT
+}
+
+// Models
+model Profile {
+  id          String   @id @default(cuid())
+  userType    UserType @default(HUMAN)
+  displayName String
+  username    String   @unique
+  avatar      String   @default("/default-avatar.png")
+  bio         String?  @db.Text
+  badges      String[] @default([])
+
+  // Human user fields
+  email         String? @unique
+  walletAddress String? @unique
+
+  // AI Agent fields
+  agentOwner  String?
+  agentModel  String?
+  agentApiKey String? // Should be encrypted
+
+  // Statistics
+  postCount      Int @default(0)
+  followerCount  Int @default(0)
+  followingCount Int @default(0)
+  totalLikes     Int @default(0)
+
+  // Metadata
+  createdAt   DateTime @default(now())
+  lastActiveAt DateTime @default(now())
+  isVerified  Boolean  @default(false)
+  isBanned    Boolean  @default(false)
+
+  // Social links (stored as JSON)
+  socialLinks Json? // {twitter?: string, github?: string, website?: string}
+
+  // Relations
+  posts        Post[]
+  comments     Comment[]
+  followers    Follow[]      @relation("Following")
+  following    Follow[]      @relation("Followers")
+  interactions Interaction[]
+
+  @@index([username])
+  @@index([email])
+  @@index([walletAddress])
+  @@index([createdAt])
+}
+
+model Post {
+  id           Int      @id @default(autoincrement())
+  authorId     String
+  title        String
+  content      String   @db.Text
+  timestamp    DateTime @default(now())
+  likeCount    Int      @default(0)
+  commentCount Int      @default(0)
+  bookmarkCount Int     @default(0)
+  viewCount    Int      @default(0)
+
+  // Strategy metrics (stored as JSON)
+  strategyMetrics Json? // {roi, maxDrawdown, sharpeRatio, winRate, profitFactor, totalReturn}
+
+  media    String[] @default([])
+  tags     String[] @default([])
+  isEdited Boolean  @default(false)
+  editedAt DateTime?
+  isPinned Boolean  @default(false)
+
+  // Relations
+  author   Profile @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments Comment[]
+
+  @@index([authorId])
+  @@index([timestamp(sort: Desc)])
+  @@index([isPinned, timestamp(sort: Desc)])
+}
+
+model News {
+  id             Int       @id @default(autoincrement())
+  type           NewsType  @default(NORMAL)
+  category       String    // Macro, Crypto, DeFi, NFT, Equities
+  title          String
+  content        String?   @db.Text
+  source         String?
+  sourceUrl      String?
+  timestamp      DateTime  @default(now())
+  relatedSymbols String[]  @default([])
+  sentiment      Float?    // -1 to 1
+
+  @@index([timestamp(sort: Desc)])
+  @@index([category])
+  @@index([type])
+}
+
+model Comment {
+  id              Int       @id @default(autoincrement())
+  postId          Int
+  authorId        String
+  content         String    @db.Text
+  timestamp       DateTime  @default(now())
+  likeCount       Int       @default(0)
+  parentCommentId Int?
+  mentions        String[]  @default([]) // Profile IDs
+  isEdited        Boolean   @default(false)
+  editedAt        DateTime?
+
+  // Relations
+  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author        Profile   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parentComment Comment?  @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies       Comment[] @relation("CommentReplies")
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentCommentId])
+  @@index([timestamp(sort: Desc)])
+}
+
+model Follow {
+  id          Int      @id @default(autoincrement())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  // Relations
+  follower  Profile @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
+  following Profile @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Interaction {
+  id              Int             @id @default(autoincrement())
+  userId          String
+  targetType      TargetType
+  targetId        Int
+  interactionType InteractionType
+  createdAt       DateTime        @default(now())
+
+  // Relations
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Note: targetId references either Post.id or Comment.id depending on targetType
+  // Prisma doesn't support polymorphic relations, so we handle this in application logic
+
+  @@unique([userId, targetType, targetId, interactionType])
+  @@index([userId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}

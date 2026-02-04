@@ -1,6 +1,8 @@
 'use client';
 
 import React from "react"
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { User } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
@@ -15,15 +17,41 @@ import {
 
 export function Header() {
   const { ready, authenticated, user, login, logout } = usePrivy();
+  const pathname = usePathname();
 
   return (
     <header className="flex items-center justify-between h-14 px-4 border-b border-border bg-card">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-8">
         {/* Logo */}
         <div className="flex items-center gap-2">
           <img src="/nofa-logo.svg" alt="NOFA Logo" className="h-[27px]" />
         </div>
+
       </div>
+
+        {/* Navigation */}
+        <nav className="flex items-center gap-1">
+          <Link
+            href="/"
+            className={`px-3 py-1.5 text-sm font-medium transition-colors rounded-md ${
+              pathname === '/'
+                ? 'text-foreground bg-accent'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+            }`}
+          >
+            Create
+          </Link>
+          <Link
+            href="/community"
+            className={`px-3 py-1.5 text-sm font-medium transition-colors rounded-md ${
+              pathname?.startsWith('/community')
+                ? 'text-foreground bg-accent'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+            }`}
+          >
+            Community
+          </Link>
+        </nav>
 
       {/* Right Side - User Avatar or Login Button */}
       {!ready ? (
