@@ -81,7 +81,7 @@ interface ActionBlock {
     mode: AllocateMode;
     value: number; // 权重（如30=30%）或保证金数值
   };
-  /** 杠杆（1-100） */
+  /** 杠杆（1-100，整数） */
   leverage: number;
   /** 可选：该 Block 独立的止盈止损（覆盖全局配置） */
   riskManagement?: Partial<RiskManagement>;
@@ -187,7 +187,7 @@ type StrategyTreeJSON = Omit<StrategyTree, 'description'> & {
 | `actionBlock.symbol` | 预定义枚举值或符合 XXX/USDT 格式的合法代币对 | 标的格式不合法，需符合 XXX/USDT 规范 |
 | `actionBlock.direction` | 必须为 'LONG' 或 'SHORT' | 交易方向仅支持 LONG 或 SHORT |
 | `actionBlock.allocate` | 必须为 type 为 'ALLOCATE_CONFIG' 的合法节点 | 仓位配置必须是合法的 ALLOCATE_CONFIG 节点 |
-| `actionBlock.leverage` | 1 ≤ leverage ≤ 100 | 杠杆必须在 1-100 倍之间 |
+| `actionBlock.leverage` | 1 ≤ leverage ≤ 100，且为整数 | 杠杆必须在 1-100 倍之间，且为整数 |
 | `actionBlock.riskManagement` | 若配置，需为 Partial<RiskManagement> 类型，且数值约束同全局风险管理 | 局部止盈止损配置不合法，需符合数值范围要求 |
 | `allocateConfig.type` | 固定为 'ALLOCATE_CONFIG' | 仓位配置节点 type 必须为 'ALLOCATE_CONFIG' |
 | `allocateConfig.mode` | 必须为 'WEIGHT' 或 'MARGIN' | 仓位配置模式仅支持权重（WEIGHT）或保证金（MARGIN） |

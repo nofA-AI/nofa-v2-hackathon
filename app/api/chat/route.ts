@@ -108,8 +108,8 @@ function validateStrategyTree(tree: any): { valid: boolean; error?: string } {
     }
 
     // 验证leverage
-    if (action.leverage < 1 || action.leverage > 100) {
-      return `${path}.leverage 杠杆必须在 1-100 倍之间`;
+    if (!Number.isInteger(action.leverage) || action.leverage < 1 || action.leverage > 100) {
+      return `${path}.leverage 杠杆必须在 1-100 倍之间，且为整数`;
     }
 
     // 验证可选的riskManagement
@@ -373,7 +373,7 @@ For indicator-based comparison value:
     "mode": "WEIGHT" | "MARGIN",
     "value": number (WEIGHT: 0-100, MARGIN: >0)
   },
-  "leverage": number (1-100),
+  "leverage": integer (1-100),
   "riskManagement": optional RISK_MANAGEMENT (partial)
 }
 
@@ -381,7 +381,7 @@ For indicator-based comparison value:
 - All nodes MUST have the correct "type" field
 - Name fields: 1-100 characters
 - Symbol format: XXX/USDT (uppercase)
-- Leverage: 1-100
+- Leverage: 1-100 (integer)
 - Period: 1-1000
 - Percentage values (PCT mode): 0-1 (e.g., 0.03 for 3%)
 - Weight values (WEIGHT mode): 0-100 (e.g., 30 for 30%)
