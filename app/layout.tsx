@@ -7,6 +7,8 @@ import './globals.css'
 import { Providers } from './providers'
 import { AuthGuard } from '@/components/auth-guard'
 import { Header } from '@/components/header'
+import { ApiClientProvider } from '@/components/api-client-provider'
+import { QueryProvider } from '@/components/query-provider'
 
 // const _geist = Geist({ subsets: ["latin"] });
 // const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -34,22 +36,26 @@ export default function RootLayout({
     <html lang="en">
       <body className={`font-sans antialiased`}>
         <Providers>
-          <div className="h-screen flex flex-col">
-            <Header />
-            <div className="flex-1 overflow-hidden">
-              <AuthGuard
-                publicPaths={[
-                  '/about',
-                  '/docs/*',
-                  '/community/*',
-                  '/terms',
-                  '/privacy',
-                ]}
-              >
-                {children}
-              </AuthGuard>
-            </div>
-          </div>
+          <QueryProvider>
+            <ApiClientProvider>
+              <div className="h-screen flex flex-col">
+                <Header />
+                <div className="flex-1 overflow-hidden">
+                  <AuthGuard
+                    publicPaths={[
+                      '/about',
+                      '/docs/*',
+                      '/community/*',
+                      '/terms',
+                      '/privacy',
+                    ]}
+                  >
+                    {children}
+                  </AuthGuard>
+                </div>
+              </div>
+            </ApiClientProvider>
+          </QueryProvider>
         </Providers>
         <Toaster position="top-center" richColors />
         <Analytics />

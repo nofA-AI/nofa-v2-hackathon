@@ -40,11 +40,23 @@ export function Header() {
               {user?.email?.address || user?.wallet?.address || 'My Account'}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile Settings</DropdownMenuItem>
-            <DropdownMenuItem>API Keys</DropdownMenuItem>
-            <DropdownMenuItem>Connected Exchanges</DropdownMenuItem>
+            <DropdownMenuItem disabled className="justify-between">
+              <span>Profile Settings</span>
+              <span className="text-xs text-muted-foreground">Soon</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled className="justify-between">
+              <span>API Keys</span>
+              <span className="text-xs text-muted-foreground">Soon</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled className="justify-between">
+              <span>Connected Exchanges</span>
+              <span className="text-xs text-muted-foreground">Soon</span>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Help & Support</DropdownMenuItem>
+            <DropdownMenuItem disabled className="justify-between">
+              <span>Help & Support</span>
+              <span className="text-xs text-muted-foreground">Soon</span>
+            </DropdownMenuItem>
             <DropdownMenuItem className="text-destructive" onClick={logout}>
               Sign Out
             </DropdownMenuItem>
@@ -55,7 +67,7 @@ export function Header() {
           onClick={login}
           variant="default"
         >
-          Login
+          Sign In
         </Button>
       )}
     </header>

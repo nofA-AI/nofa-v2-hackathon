@@ -1,7 +1,6 @@
 import dayjs from 'dayjs';
 import { BacktestParams, BacktestResult, StrategyTree } from '@/lib/types/strategy';
-
-const BACKTEST_API_URL = process.env.NEXT_PUBLIC_BACKTEST_API_URL || 'https://backtest-server-staging.up.railway.app/api/v1/backtest/run';
+import { backtestClient } from '@/lib/api/backtest-client';
 
 /**
  * Convert frontend timeframe format to backend API format
@@ -108,22 +107,9 @@ export const runBacktest = async (
   };
 
   try {
-    const response = await fetch(BACKTEST_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        `Backtest API error: ${response.status} ${response.statusText}. ${JSON.stringify(errorData)}`
-      );
-    }
-
-    const data: BacktestApiResponse = await response.json();
+    // Use authenticated axios client
+    const response = await backtestClient.post<BacktestApiResponse>('/backtest/run', requestBody);
+    const data = response.data;
 
     // Convert API response to our BacktestResult format
     const initialCapital = params.initialCapital;

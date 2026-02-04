@@ -23,7 +23,7 @@ import type { UIMessage } from 'ai';
 import { toast } from 'sonner';
 import { modelID, models } from '@/lib/models';
 import { BacktestDialog } from '@/components/backtest-dialog';
-import { runBacktest } from '@/lib/backtest';
+import { useRunBacktest } from '@/lib/hooks/use-backtest';
 import dayjs from 'dayjs';
 import './streamdown.css';
 import { code } from './code';
@@ -91,9 +91,11 @@ export function AIChatPanel({
   const [selectedModelId, setSelectedModelId] = useState<modelID>('openrouter/gpt-5.2');
   const [isReasoningEnabled, setIsReasoningEnabled] = useState<boolean>(true);
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
-  const [isRunningBacktest, setIsRunningBacktest] = useState(false);
   const [backtestParams, setBacktestParams] = useState<BacktestParams>(DEFAULT_BACKTEST_PARAMS);
   const [backtestStrategy, setBacktestStrategy] = useState<StrategyTree | undefined>(undefined);
+
+  // Use React Query for backtest
+  const runBacktestMutation = useRunBacktest();
 
   const loadingTexts = [
     'Analyzing your strategy...',
@@ -497,10 +499,11 @@ export function AIChatPanel({
 
     if (!tree) return;
 
-    setIsRunningBacktest(true);
-
     try {
-        const result = await runBacktest(tree, backtestParams);
+        const result = await runBacktestMutation.mutateAsync({
+          strategyTree: tree,
+          params: backtestParams,
+        });
         addBacktestResult(currentStrategyId, result);
         toast.success('Backtest completed successfully!');
         setBacktestDialogOpen(false);
@@ -509,8 +512,6 @@ export function AIChatPanel({
     } catch (error) {
         console.error('Backtest failed:', error);
         toast.error('Backtest failed. Please try again.');
-    } finally {
-        setIsRunningBacktest(false);
     }
   };
 
@@ -634,7 +635,7 @@ export function AIChatPanel({
         params={backtestParams}
         onParamsChange={setBacktestParams}
         onRun={() => handleRunBacktest(backtestStrategy)}
-        isRunning={isRunningBacktest}
+        isRunning={runBacktestMutation.isPending}
       />
     </div>
   );

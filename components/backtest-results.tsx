@@ -11,6 +11,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -51,6 +61,7 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
   const [isRunning, setIsRunning] = useState(false);
   const [backtestParams, setBacktestParams] = useState<BacktestParams>(DEFAULT_BACKTEST_PARAMS);
   const [selectedResultIndex, setSelectedResultIndex] = useState<number>(-1);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { currentStrategyId, backtestResults, addBacktestResult, removeBacktestResult, history } =
     useStrategyStore();
@@ -215,10 +226,13 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
   }, [onSendMessage]);
 
   const handleDeleteBacktest = useCallback(() => {
+    setDeleteDialogOpen(true);
+  }, []);
+
+  const confirmDelete = useCallback(() => {
     if (!currentStrategyId || !latestResult) return;
-    const ok = window.confirm('Delete this backtest result? This cannot be undone.');
-    if (!ok) return;
     removeBacktestResult(currentStrategyId, latestResult.id);
+    setDeleteDialogOpen(false);
   }, [currentStrategyId, latestResult, removeBacktestResult]);
 
   useEffect(() => {
@@ -620,6 +634,27 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
         onParamsChange={setBacktestParams}
         onRun={runBacktest}
       />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Backtest Result?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the backtest result
+              from your strategy history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ScrollArea>
   );
 }

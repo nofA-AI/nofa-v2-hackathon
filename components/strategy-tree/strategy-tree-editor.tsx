@@ -53,7 +53,7 @@ import { IfElseBlockNode } from './nodes/if-else-block-node';
 import { ActionBlockNode } from './nodes/action-block-node';
 import { AddBlockDropdown } from './add-block-dropdown';
 import { BacktestDialog } from '@/components/backtest-dialog';
-import { runBacktest } from '@/lib/backtest';
+import { useRunBacktest } from '@/lib/hooks/use-backtest';
 import dayjs from 'dayjs';
 
 interface StrategyTreeEditorProps {
@@ -79,10 +79,12 @@ export function StrategyTreeEditor({ onCreateWithAI, onSwitchToBacktest }: Strat
   );
   const [pasteDialogOpen, setPasteDialogOpen] = useState(false);
   const [backtestDialogOpen, setBacktestDialogOpen] = useState(false);
-  const [isRunningBacktest, setIsRunningBacktest] = useState(false);
   const [jsonInput, setJsonInput] = useState('');
   const [jsonError, setJsonError] = useState('');
   const [backtestParams, setBacktestParams] = useState<BacktestParams>(DEFAULT_BACKTEST_PARAMS);
+
+  // Use React Query for backtest
+  const runBacktestMutation = useRunBacktest();
 
   // Check if strategy is valid for backtesting
   const mainDecision = Array.isArray(strategyTree.mainDecision)
@@ -97,10 +99,11 @@ export function StrategyTreeEditor({ onCreateWithAI, onSwitchToBacktest }: Strat
   const handleRunBacktest = useCallback(async () => {
     if (!currentStrategyId || !isStrategyValid) return;
 
-    setIsRunningBacktest(true);
-
     try {
-      const result = await runBacktest(strategyTree, backtestParams);
+      const result = await runBacktestMutation.mutateAsync({
+        strategyTree,
+        params: backtestParams,
+      });
       addBacktestResult(currentStrategyId, result);
       setBacktestDialogOpen(false);
       toast.success('Backtest completed successfully!');
@@ -109,10 +112,8 @@ export function StrategyTreeEditor({ onCreateWithAI, onSwitchToBacktest }: Strat
     } catch (error) {
       console.error('Backtest failed:', error);
       toast.error('Backtest failed. Please try again.');
-    } finally {
-      setIsRunningBacktest(false);
     }
-  }, [currentStrategyId, isStrategyValid, backtestParams, addBacktestResult, onSwitchToBacktest]);
+  }, [currentStrategyId, isStrategyValid, strategyTree, backtestParams, runBacktestMutation, addBacktestResult, onSwitchToBacktest]);
 
   const toggleExpand = (nodeId: string) => {
     setExpandedNodes((prev) => {
@@ -305,9 +306,9 @@ export function StrategyTreeEditor({ onCreateWithAI, onSwitchToBacktest }: Strat
                       e.stopPropagation();
                       setBacktestDialogOpen(true);
                     }}
-                    disabled={isRunningBacktest}
+                    disabled={runBacktestMutation.isPending}
                   >
-                    {isRunningBacktest ? (
+                    {runBacktestMutation.isPending ? (
                       <>
                         <ArrowsClockwise className="w-3 h-3 mr-1 animate-spin" />
                         Running...
@@ -474,7 +475,7 @@ export function StrategyTreeEditor({ onCreateWithAI, onSwitchToBacktest }: Strat
         params={backtestParams}
         onParamsChange={setBacktestParams}
         onRun={handleRunBacktest}
-        isRunning={isRunningBacktest}
+        isRunning={runBacktestMutation.isPending}
       />
     </div>
   );
