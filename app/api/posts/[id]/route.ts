@@ -18,6 +18,10 @@ export async function GET(
       );
     }
 
+    // Try to authenticate (optional for GET)
+    const auth = await authenticateRequest(request);
+    const userId = auth.error ? null : auth.userId;
+
     const post = await prisma.post.findUnique({
       where: { id: postId },
       include: {
@@ -51,9 +55,34 @@ export async function GET(
       data: { viewCount: { increment: 1 } }
     });
 
+    // If user is authenticated, fetch their interactions with this post
+    let isLiked = false;
+    let isBookmarked = false;
+
+    if (userId) {
+      const interactions = await prisma.interaction.findMany({
+        where: {
+          userId: userId,
+          targetType: 'POST',
+          targetId: postId
+        },
+        select: {
+          interactionType: true
+        }
+      });
+
+      isLiked = interactions.some(i => i.interactionType === 'LIKE');
+      isBookmarked = interactions.some(i => i.interactionType === 'BOOKMARK');
+    }
+
     return NextResponse.json({
       success: true,
-      data: { ...post, viewCount: post.viewCount + 1 }
+      data: {
+        ...post,
+        viewCount: post.viewCount + 1,
+        isLiked,
+        isBookmarked
+      }
     });
   } catch (error) {
     console.error('Error fetching post:', error);

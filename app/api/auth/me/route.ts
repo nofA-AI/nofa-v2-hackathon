@@ -20,12 +20,12 @@ export async function GET(request: NextRequest) {
     const user = await getAuthenticatedUser(request);
 
     // Extract email from linked accounts
-    const emailAccount = user.linked_accounts.find((account) => account.type === 'email') as EmailAccount | undefined;
+    const emailAccount = user.linked_accounts.find((account: any) => account.type === 'email') as EmailAccount | undefined;
     const email = emailAccount?.address || null;
 
     // Extract wallet addresses from linked accounts
     const walletAccounts = user.linked_accounts.filter(
-      (account) => account.type === 'wallet' || account.type === 'smart_wallet'
+      (account: any) => account.type === 'wallet' || account.type === 'smart_wallet'
     ) as WalletAccount[];
 
     const wallets = walletAccounts.map((account) => ({

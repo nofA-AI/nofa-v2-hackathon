@@ -18,6 +18,10 @@ export async function GET(
       );
     }
 
+    // Try to authenticate (optional for GET)
+    const auth = await authenticateRequest(request);
+    const userId = auth.error ? null : auth.userId;
+
     // Get top-level comments and their replies
     const comments = await prisma.comment.findMany({
       where: {
@@ -56,9 +60,45 @@ export async function GET(
       }
     });
 
+    // If user is authenticated, fetch their interactions
+    let userInteractions: Map<number, Set<string>> = new Map();
+    if (userId) {
+      const commentIds = comments.flatMap(c => [c.id, ...(c.replies?.map(r => r.id) || [])]);
+
+      const interactions = await prisma.interaction.findMany({
+        where: {
+          userId: userId,
+          targetType: 'COMMENT',
+          targetId: { in: commentIds }
+        },
+        select: {
+          targetId: true,
+          interactionType: true
+        }
+      });
+
+      // Build a map of comment ID to interaction types
+      interactions.forEach(interaction => {
+        if (!userInteractions.has(interaction.targetId)) {
+          userInteractions.set(interaction.targetId, new Set());
+        }
+        userInteractions.get(interaction.targetId)!.add(interaction.interactionType);
+      });
+    }
+
+    // Add interaction status to comments
+    const commentsWithInteractions = comments.map(comment => ({
+      ...comment,
+      isLiked: userInteractions.get(comment.id)?.has('LIKE') || false,
+      replies: comment.replies?.map(reply => ({
+        ...reply,
+        isLiked: userInteractions.get(reply.id)?.has('LIKE') || false,
+      }))
+    }));
+
     return NextResponse.json({
       success: true,
-      data: comments
+      data: commentsWithInteractions
     });
   } catch (error) {
     console.error('Error fetching comments:', error);

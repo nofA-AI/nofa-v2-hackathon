@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,107 +24,494 @@ import {
 } from '@phosphor-icons/react';
 import { useUser } from '@/lib/hooks/use-user';
 import { cn } from '@/lib/utils';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api/client';
+import { toast } from 'sonner';
+import { getAvatarUrl } from '@/lib/utils/avatar';
 
-// Mock data - in real app, fetch from API
-const mockPost = {
-  id: '1',
+interface Post {
+  id: number;
+  title: string;
+  content: string;
+  timestamp: string;
+  likeCount: number;
+  commentCount: number;
+  bookmarkCount: number;
+  viewCount: number;
+  isLiked?: boolean; // User's like status
+  isBookmarked?: boolean; // User's bookmark status
+  media: string[];
+  strategyMetrics?: {
+    roi: number;
+    maxDrawdown: number;
+    sharpeRatio: number;
+    winRate?: number;
+    profitFactor?: number;
+    totalReturn?: number;
+  };
   author: {
-    name: 'QuantMaster',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD858AEeWnm4L8i_8YwMwEZOxDYZl8GiV7ThWcHAR1b6q0I5lRpLONvLleLGeiKaNAknzgPwDlWXK-0Y1mTE-CzFkj3lFj6mn7PbpF6ufIC31Q4kJ-kehrcM5YWoEG6XDBGq7QCfa3GurzDtfwLQ_ZqMvqg-ArrFqhBVB0WsN7zfoDGh5BEmyj_WIAwsA7AmBQ0MZZEc-fF4GNsEsrG3ujpV5IhgY1odODGC_7TexaT-3P5MTCmDA5CLCj8LZlYh0TGSShKatbj97w',
-    badge: 'Verified Strategist',
-  },
-  title: 'Neural Net Momentum v3.2 - Live Performance Update',
-  content: `After the recent volatility in the ETH/BTC pair, the new RSI-based threshold filter has significantly reduced false signals. The backtest results match our live execution logs with 98% precision.
+    id: string;
+    displayName: string;
+    username: string;
+    avatar: string;
+    userType: 'HUMAN' | 'AI_AGENT';
+    isVerified: boolean;
+    badges: string[];
+  };
+}
 
-We've observed that the model tends to perform exceptionally well during high-volatility regimes where trend identification is crucial. The current version incorporates a multi-layer perception architecture that weighs volume profiles more heavily than previous iterations.
-
-Key improvements in v3.2:
-- Enhanced RSI filtering mechanism
-- Volume-weighted trend detection
-- Reduced false positive rate by 40%
-- Improved Sharpe ratio from 2.8 to 3.12
-
-The strategy has been running live for 30 days with consistent results. Looking forward to community feedback before rolling out v4.`,
-  timestamp: '2h ago',
-  stats: {
-    likes: 124,
-    comments: 18,
-    bookmarks: 32,
-  },
-  strategy: {
-    roi: '+14.2%',
-    maxDrawdown: '-2.1%',
-    sharpe: '3.12',
-  },
-};
-
-const mockComments = [
-  {
-    id: '1',
-    author: {
-      name: 'AlphaResearcher',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCXio4FFdO65Y3csDLe0ajAAsIk2cF0VGJCCnpjqCQq0NsJ2JpnJuCMuZO4lOqkTYtE5SR-5vJvW-bnDKL3q8XZMjNYkK1kceMHXqzhW7TK5yb9B1OZzGBvF-t-bQueySkjFHB7sOiqpba0Q2H75uSRl-S4QzQ19DwNCA-hVaPV6aMVg7crCGNQxppu1PkBHLuCzRkBdVUryTqwbVZjSuWAULx8lH9lbWZanHrFbjtg4I5H2DfUOUaadYOXDJ8KcThgcpDRlMqrV3U',
-    },
-    content: 'Excellent breakdown. Have you tested this against the recent flash crash on the 14th? I\'m curious if the RSI filter would have triggered a stop or if it stayed in the trade.',
-    timestamp: '1h ago',
-    likes: 12,
-    isLiked: true,
-  },
-  {
-    id: '2',
-    author: {
-      name: 'TraderJoe_88',
-      avatar: null,
-    },
-    content: 'Just added this to my paper trading account. The Sharpe ratio looks very promising for a momentum strategy.',
-    timestamp: '45m ago',
-    likes: 4,
-    isLiked: false,
-    replies: [
-      {
-        id: '2-1',
-        author: {
-          name: 'QuantMaster',
-          avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD858AEeWnm4L8i_8YwMwEZOxDYZl8GiV7ThWcHAR1b6q0I5lRpLONvLleLGeiKaNAknzgPwDlWXK-0Y1mTE-CzFkj3lFj6mn7PbpF6ufIC31Q4kJ-kehrcM5YWoEG6XDBGq7QCfa3GurzDtfwLQ_ZqMvqg-ArrFqhBVB0WsN7zfoDGh5BEmyj_WIAwsA7AmBQ0MZZEc-fF4GNsEsrG3ujpV5IhgY1odODGC_7TexaT-3P5MTCmDA5CLCj8LZlYh0TGSShKatbj97w',
-        },
-        content: '@TraderJoe_88 Thanks! Keep us posted on the paper trading results. We\'re looking for more community feedback before the v4 update.',
-        timestamp: '10m ago',
-        likes: 0,
-      },
-    ],
-  },
-];
+interface Comment {
+  id: number;
+  content: string;
+  timestamp: string;
+  likeCount: number;
+  isLiked?: boolean; // User's interaction status
+  parentCommentId?: number | null;
+  mentions?: string[];
+  author: {
+    id: string;
+    displayName: string;
+    username: string;
+    avatar: string;
+    userType: 'HUMAN' | 'AI_AGENT';
+    isVerified: boolean;
+  };
+  replies?: Comment[];
+}
 
 export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user, guard } = useUser();
+  const queryClient = useQueryClient();
   const postId = params.id as string;
 
-  const [isLiked, setIsLiked] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [likes, setLikes] = useState(mockPost.stats.likes);
-  const [bookmarks, setBookmarks] = useState(mockPost.stats.bookmarks);
   const [comment, setComment] = useState('');
+  const [replyContent, setReplyContent] = useState('');
+  const [replyTargetId, setReplyTargetId] = useState<number | null>(null);
+  const [replyToLabel, setReplyToLabel] = useState<string | null>(null);
+  const [replyToUserId, setReplyToUserId] = useState<string | null>(null);
+  const [replyTargetAnchorId, setReplyTargetAnchorId] = useState<string | null>(null);
+  const commentsSectionRef = useRef<HTMLDivElement | null>(null);
+
+  // Fetch post details
+  const { data: post, isLoading: postLoading } = useQuery<Post>({
+    queryKey: ['post', postId],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/posts/${postId}`);
+      return response.data.data;
+    },
+  });
+
+  // Fetch comments
+  const { data: comments = [], isLoading: commentsLoading } = useQuery<Comment[]>({
+    queryKey: ['comments', postId],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/posts/${postId}/comments`);
+      return response.data.data;
+    },
+  });
+
+  // Like/unlike post mutation
+  const likeMutation = useMutation({
+    mutationFn: async () => {
+      if (!post) return;
+
+      const isLiked = post.isLiked;
+
+      // Check current like status and toggle accordingly
+      if (isLiked) {
+        // Already liked, so unlike it
+        await apiClient.delete('/api/interactions', {
+          params: {
+            targetType: 'POST',
+            targetId: parseInt(postId),
+            interactionType: 'LIKE',
+          },
+        });
+      } else {
+        // Not liked yet, so like it
+        await apiClient.post('/api/interactions', {
+          targetType: 'POST',
+          targetId: parseInt(postId),
+          interactionType: 'LIKE',
+        });
+      }
+
+      return { isLiked };
+    },
+    onMutate: async () => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['post', postId] });
+
+      // Snapshot the previous value
+      const previousPost = queryClient.getQueryData(['post', postId]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData(['post', postId], (old: Post | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          isLiked: !old.isLiked,
+          likeCount: old.isLiked ? old.likeCount - 1 : old.likeCount + 1,
+        };
+      });
+
+      return { previousPost };
+    },
+    onError: (error: any, variables, context) => {
+      // Rollback on error
+      if (context?.previousPost) {
+        queryClient.setQueryData(['post', postId], context.previousPost);
+      }
+      toast.error(error.response?.data?.error || 'Failed to toggle like');
+    },
+    onSettled: () => {
+      // Refetch to ensure data is in sync (but UI already updated)
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+    },
+  });
+
+  // Bookmark/unbookmark post mutation
+  const bookmarkMutation = useMutation({
+    mutationFn: async () => {
+      if (!post) return;
+
+      // Check current bookmark status and toggle accordingly
+      if (post.isBookmarked) {
+        // Already bookmarked, so remove it
+        await apiClient.delete('/api/interactions', {
+          params: {
+            targetType: 'POST',
+            targetId: parseInt(postId),
+            interactionType: 'BOOKMARK',
+          },
+        });
+      } else {
+        // Not bookmarked yet, so bookmark it
+        await apiClient.post('/api/interactions', {
+          targetType: 'POST',
+          targetId: parseInt(postId),
+          interactionType: 'BOOKMARK',
+        });
+      }
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['post', postId] });
+
+      const previousPost = queryClient.getQueryData(['post', postId]);
+
+      queryClient.setQueryData(['post', postId], (old: Post | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          isBookmarked: !old.isBookmarked,
+          bookmarkCount: old.isBookmarked ? old.bookmarkCount - 1 : old.bookmarkCount + 1,
+        };
+      });
+
+      return { previousPost };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+    },
+    onError: (error: any, variables, context) => {
+      if (context?.previousPost) {
+        queryClient.setQueryData(['post', postId], context.previousPost);
+      }
+      toast.error(error.response?.data?.error || 'Failed to toggle bookmark');
+    },
+  });
+
+  // Create comment mutation
+  const commentMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const response = await apiClient.post(`/api/posts/${postId}/comments`, {
+        content,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      setComment('');
+      toast.success('Comment posted successfully!');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to post comment');
+    },
+  });
+
+  // Create reply mutation
+  const replyMutation = useMutation({
+    mutationFn: async ({ content, parentCommentId, mentions }: { content: string; parentCommentId: number; mentions?: string[] }) => {
+      const response = await apiClient.post(`/api/posts/${postId}/comments`, {
+        content,
+        parentCommentId,
+        mentions,
+      });
+      return response.data.data as Comment;
+    },
+    onSuccess: (createdReply) => {
+      queryClient.setQueryData(['comments', postId], (old: Comment[] | undefined) => {
+        if (!old) return old;
+        const parentId = createdReply.parentCommentId;
+        if (!parentId) return old;
+        return old.map((commentItem) => {
+          if (commentItem.id !== parentId) return commentItem;
+          return {
+            ...commentItem,
+            replies: [...(commentItem.replies || []), createdReply],
+          };
+        });
+      });
+
+      queryClient.setQueryData(['post', postId], (old: Post | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          commentCount: old.commentCount + 1,
+        };
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      setReplyContent('');
+      setReplyTargetId(null);
+      setReplyToLabel(null);
+      toast.success('Reply posted successfully!');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to post reply');
+    },
+  });
+
+  // Like/unlike comment mutation
+  const commentLikeMutation = useMutation({
+    mutationFn: async ({ commentId, isLiked }: { commentId: number; isLiked: boolean }) => {
+      // Check current like status and toggle accordingly
+      if (isLiked) {
+        // Already liked, so unlike it
+        await apiClient.delete('/api/interactions', {
+          params: {
+            targetType: 'COMMENT',
+            targetId: commentId,
+            interactionType: 'LIKE',
+          },
+        });
+      } else {
+        // Not liked yet, so like it
+        await apiClient.post('/api/interactions', {
+          targetType: 'COMMENT',
+          targetId: commentId,
+          interactionType: 'LIKE',
+        });
+      }
+    },
+    onMutate: async ({ commentId, isLiked }) => {
+      await queryClient.cancelQueries({ queryKey: ['comments', postId] });
+
+      const previousComments = queryClient.getQueryData(['comments', postId]);
+
+      queryClient.setQueryData(['comments', postId], (old: Comment[] | undefined) => {
+        if (!old) return old;
+        return old.map((commentItem) => {
+          if (commentItem.id === commentId) {
+            return {
+              ...commentItem,
+              isLiked: !isLiked,
+              likeCount: isLiked ? commentItem.likeCount - 1 : commentItem.likeCount + 1,
+            };
+          }
+
+          if (!commentItem.replies?.length) return commentItem;
+
+          return {
+            ...commentItem,
+            replies: commentItem.replies.map((reply) => {
+              if (reply.id !== commentId) return reply;
+              return {
+                ...reply,
+                isLiked: !isLiked,
+                likeCount: isLiked ? reply.likeCount - 1 : reply.likeCount + 1,
+              };
+            }),
+          };
+        });
+      });
+
+      return { previousComments };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+    },
+    onError: (error: any, variables, context) => {
+      if (context?.previousComments) {
+        queryClient.setQueryData(['comments', postId], context.previousComments);
+      }
+      toast.error(error.response?.data?.error || 'Failed to toggle like');
+    },
+  });
 
   const handleLike = () => {
     if (!guard()) return;
-    setIsLiked(!isLiked);
-    setLikes(prev => isLiked ? prev - 1 : prev + 1);
+    likeMutation.mutate();
   };
 
   const handleBookmark = () => {
     if (!guard()) return;
-    setIsBookmarked(!isBookmarked);
-    setBookmarks(prev => isBookmarked ? prev - 1 : prev + 1);
+    bookmarkMutation.mutate();
   };
 
   const handleComment = () => {
     if (!guard()) return;
-    if (!comment.trim()) return;
-    console.log('Post comment:', comment);
-    setComment('');
+    if (!comment.trim()) {
+      toast.error('Please write a comment');
+      return;
+    }
+    commentMutation.mutate(comment);
   };
+
+  const handleCommentLike = (commentId: number, isLiked: boolean) => {
+    if (!guard()) return;
+    commentLikeMutation.mutate({ commentId, isLiked });
+  };
+
+  const handleReplyClick = (
+    parentCommentId: number,
+    replyToName?: string,
+    replyToId?: string,
+    anchorId?: string
+  ) => {
+    if (!guard()) return;
+    setReplyTargetId(parentCommentId);
+    setReplyToLabel(replyToName || null);
+    setReplyToUserId(replyToId || null);
+    setReplyTargetAnchorId(anchorId || null);
+    setReplyContent('');
+  };
+
+  const handleReplyCancel = () => {
+    setReplyTargetId(null);
+    setReplyToLabel(null);
+    setReplyToUserId(null);
+    setReplyTargetAnchorId(null);
+    setReplyContent('');
+  };
+
+  const handleReplySubmit = () => {
+    if (!guard()) return;
+    if (!replyTargetId) return;
+    if (!replyContent.trim()) {
+      toast.error('Please write a reply');
+      return;
+    }
+    replyMutation.mutate({
+      content: replyContent.trim(),
+      parentCommentId: replyTargetId,
+      mentions: replyToUserId ? [replyToUserId] : undefined,
+    });
+  };
+
+  const getReplyTargetName = (reply: Comment, parentComment: Comment) => {
+    const mentionId = reply.mentions?.[0];
+    if (!mentionId) return parentComment.author.displayName;
+    if (mentionId === parentComment.author.id) return parentComment.author.displayName;
+    const mentionedReplyAuthor = parentComment.replies?.find(
+      (nested) => nested.author.id === mentionId
+    )?.author.displayName;
+    return mentionedReplyAuthor || parentComment.author.displayName;
+  };
+
+  const handleScrollToComments = () => {
+    commentsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleReportPost = () => {
+    toast.success('Report submitted. Thanks for helping keep the community safe.');
+  };
+
+  const handleSharePost = async () => {
+    const shareUrl = `${window.location.origin}/community/post/${postId}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: post?.title || 'Community Post',
+          url: shareUrl,
+        });
+        return;
+      } catch {
+        // fall through to clipboard
+      }
+    }
+
+    // try {
+    //   await navigator.clipboard.writeText(shareUrl);
+    //   toast.success('Link copied to clipboard');
+    // } catch {
+    //   toast.error('Failed to copy link');
+    // }
+  };
+
+  const handleCopyLink = async () => {
+    const shareUrl = `${window.location.origin}/community/post/${postId}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Link copied to clipboard');
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  };
+
+  const handleBackToFeed = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push('/community');
+  };
+
+  function getTimeAgo(timestamp: string): string {
+    const now = new Date();
+    const past = new Date(timestamp);
+    const diffInMinutes = Math.floor((now.getTime() - past.getTime()) / 60000);
+
+    if (diffInMinutes < 1) return 'just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    return `${Math.floor(diffInMinutes / 1440)}d ago`;
+  }
+
+  if (postLoading) {
+    return (
+      <div className="max-w-[1440px] mx-auto px-4 md:px-10 py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center py-20">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent" />
+            <p className="mt-4 text-sm text-muted-foreground">Loading post...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!post) {
+    return (
+      <div className="max-w-[1440px] mx-auto px-4 md:px-10 py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center py-20">
+            <p className="text-lg text-muted-foreground">Post not found</p>
+            <Button onClick={() => router.push('/community')} className="mt-4">
+              Back to Feed
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1440px] mx-auto px-4 md:px-10 py-8">
@@ -132,7 +519,7 @@ export default function PostDetailPage() {
         {/* Back Button */}
         <Button
           variant="ghost"
-          onClick={() => router.back()}
+          onClick={handleBackToFeed}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="w-5 h-5" weight="bold" />
@@ -144,23 +531,17 @@ export default function PostDetailPage() {
           <div className="p-6">
             {/* Author Info */}
             <div className="flex items-start gap-3 mb-6">
-              {mockPost.author.avatar ? (
-                <div
-                  className="size-12 rounded-full bg-cover bg-center shrink-0"
-                  style={{ backgroundImage: `url(${mockPost.author.avatar})` }}
-                />
-              ) : (
-                <div className="size-12 rounded-full bg-primary flex items-center justify-center text-white shrink-0">
-                  <span className="text-lg font-bold">{mockPost.author.name[0]}</span>
-                </div>
-              )}
+              <div
+                className="size-12 rounded-full bg-cover bg-center shrink-0"
+                style={{ backgroundImage: `url(${getAvatarUrl(post.author.id || post.author.displayName, post.author.userType)})` }}
+              />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <h4 className="text-base font-bold">{mockPost.author.name}</h4>
-                  <span className="text-xs text-muted-foreground">{mockPost.timestamp}</span>
+                  <h4 className="text-base font-bold">{post.author.displayName}</h4>
+                  <span className="text-xs text-muted-foreground">{getTimeAgo(post.timestamp)}</span>
                 </div>
-                {mockPost.author.badge && (
-                  <p className="text-xs text-primary font-medium">{mockPost.author.badge}</p>
+                {post.author.isVerified && post.author.badges.length > 0 && (
+                  <p className="text-xs text-primary font-medium">{post.author.badges[0]}</p>
                 )}
               </div>
               <DropdownMenu>
@@ -170,21 +551,21 @@ export default function PostDetailPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>Report Post</DropdownMenuItem>
-                  <DropdownMenuItem>Share</DropdownMenuItem>
-                  <DropdownMenuItem>Copy Link</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleReportPost}>Report Post</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSharePost}>Share</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleCopyLink}>Copy Link</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
 
             {/* Title */}
             <h1 className="text-2xl font-bold mb-4 leading-tight">
-              {mockPost.title}
+              {post.title}
             </h1>
 
             {/* Content */}
             <div className="prose prose-sm max-w-none mb-6">
-              {mockPost.content.split('\n\n').map((paragraph, index) => (
+              {post.content.split('\n\n').map((paragraph, index) => (
                 <p key={index} className="text-base leading-relaxed text-foreground mb-4">
                   {paragraph}
                 </p>
@@ -192,7 +573,7 @@ export default function PostDetailPage() {
             </div>
 
             {/* Strategy Stats */}
-            {mockPost.strategy && (
+            {post.strategyMetrics && (
               <div className="bg-muted border rounded-xl p-5 flex flex-col md:flex-row gap-6 items-center mb-8">
                 <div className="w-full md:w-48 h-24 bg-card rounded-lg border flex items-center justify-center p-2">
                   <svg
@@ -213,19 +594,26 @@ export default function PostDetailPage() {
                     <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-tight mb-1">
                       30D ROI
                     </p>
-                    <p className="text-lg font-bold text-green-600">{mockPost.strategy.roi}</p>
+                    <p className={cn(
+                      "text-lg font-bold",
+                      Number(post.strategyMetrics.roi) > 0 ? "text-green-600" : "text-red-500"
+                    )}>
+                      {Number(post.strategyMetrics.roi) > 0 ? '+' : ''}{Number(post.strategyMetrics.roi).toFixed(1)}%
+                    </p>
                   </div>
                   <div>
                     <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-tight mb-1">
                       Max DD
                     </p>
-                    <p className="text-lg font-bold text-red-500">{mockPost.strategy.maxDrawdown}</p>
+                    <p className="text-lg font-bold text-red-500">
+                      {Number(post.strategyMetrics.maxDrawdown).toFixed(1)}%
+                    </p>
                   </div>
                   <div>
                     <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-tight mb-1">
                       Sharpe
                     </p>
-                    <p className="text-lg font-bold">{mockPost.strategy.sharpe}</p>
+                    <p className="text-lg font-bold">{Number(post.strategyMetrics.sharpeRatio).toFixed(2)}</p>
                   </div>
                 </div>
                 <DropdownMenu>
@@ -269,33 +657,46 @@ export default function PostDetailPage() {
                   variant="ghost"
                   size="sm"
                   onClick={handleLike}
+                  disabled={likeMutation.isPending}
                   className={cn(
-                    'flex items-center gap-2 text-sm font-medium',
-                    isLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary'
+                    "flex items-center gap-2 text-sm font-medium",
+                    post.isLiked
+                      ? "text-red-500 hover:text-red-600"
+                      : "text-muted-foreground hover:text-primary"
                   )}
                 >
-                  <Heart className="w-6 h-6" weight={isLiked ? 'fill' : 'bold'} />
-                  <span className="font-medium">{likes}</span>
+                  <Heart
+                    className="w-6 h-6"
+                    weight={post.isLiked ? "fill" : "bold"}
+                  />
+                  <span className="font-medium">{post.likeCount}</span>
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={handleScrollToComments}
                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"
                 >
                   <ChatCircle className="w-6 h-6" weight="bold" />
-                  <span className="font-medium">{mockPost.stats.comments}</span>
+                  <span className="font-medium">{post.commentCount}</span>
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleBookmark}
+                  disabled={bookmarkMutation.isPending}
                   className={cn(
-                    'flex items-center gap-2 text-sm font-medium',
-                    isBookmarked ? 'text-primary' : 'text-muted-foreground hover:text-primary'
+                    "flex items-center gap-2 text-sm font-medium",
+                    post.isBookmarked
+                      ? "text-primary hover:text-primary"
+                      : "text-muted-foreground hover:text-primary"
                   )}
                 >
-                  <Bookmark className="w-6 h-6" weight={isBookmarked ? 'fill' : 'bold'} />
-                  <span className="font-medium">{bookmarks}</span>
+                  <Bookmark
+                    className="w-6 h-6"
+                    weight={post.isBookmarked ? "fill" : "bold"}
+                  />
+                  <span className="font-medium">{post.bookmarkCount}</span>
                 </Button>
               </div>
               <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
@@ -306,8 +707,8 @@ export default function PostDetailPage() {
         </article>
 
         {/* Comments Section */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-bold px-1">Comments ({mockPost.stats.comments})</h3>
+        <div ref={commentsSectionRef} className="space-y-4">
+          <h3 className="text-lg font-bold px-1">Comments ({post.commentCount})</h3>
 
           {/* Comment Input */}
           <div className="bg-card border rounded-xl p-5 shadow-sm">
@@ -328,106 +729,218 @@ export default function PostDetailPage() {
                   onClick={() => guard()}
                   placeholder="Write a comment..."
                   className="min-h-[60px] resize-none"
+                  disabled={commentMutation.isPending}
                 />
               </div>
             </div>
             <div className="flex justify-end">
-              <Button onClick={handleComment} size="sm" disabled={!comment.trim()}>
-                Post Comment
+              <Button
+                onClick={handleComment}
+                size="sm"
+                disabled={!comment.trim() || commentMutation.isPending}
+              >
+                {commentMutation.isPending ? 'Posting...' : 'Post Comment'}
               </Button>
             </div>
           </div>
 
           {/* Comments List */}
-          <div className="bg-card border rounded-xl p-5 shadow-sm space-y-6">
-            {mockComments.map((commentItem) => (
-              <div key={commentItem.id} className="space-y-4">
-                <div className="flex gap-4">
-                  {commentItem.author.avatar ? (
+          {commentsLoading ? (
+            <div className="bg-card border rounded-xl p-8 text-center">
+              <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-current border-r-transparent" />
+              <p className="mt-2 text-xs text-muted-foreground">Loading comments...</p>
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="bg-card border rounded-xl p-8 text-center">
+              <p className="text-sm text-muted-foreground">No comments yet. Be the first to comment!</p>
+            </div>
+          ) : (
+            <div className="bg-card border rounded-xl p-5 shadow-sm space-y-6">
+              {comments.map((commentItem) => (
+                <div key={commentItem.id} className="space-y-4">
+                  <div className="flex gap-4">
                     <div
                       className="size-10 shrink-0 rounded-full bg-cover bg-center"
-                      style={{ backgroundImage: `url(${commentItem.author.avatar})` }}
+                      style={{ backgroundImage: `url(${getAvatarUrl(commentItem.author.id || commentItem.author.displayName, commentItem.author.userType)})` }}
                     />
-                  ) : (
-                    <div className="size-10 shrink-0 rounded-full bg-primary flex items-center justify-center text-white">
-                      <span className="text-sm font-bold">{commentItem.author.name[0]}</span>
-                    </div>
-                  )}
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold">{commentItem.author.name}</span>
-                      <span className="text-[11px] text-muted-foreground">• {commentItem.timestamp}</span>
-                    </div>
-                    <p className="text-sm leading-relaxed">{commentItem.content}</p>
-                    <div className="flex items-center gap-4 pt-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn(
-                          'text-xs font-bold h-auto py-1 px-0',
-                          commentItem.isLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary'
-                        )}
-                      >
-                        {commentItem.isLiked ? 'Liked' : 'Like'}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs font-bold text-muted-foreground hover:text-primary h-auto py-1 px-0"
-                      >
-                        Reply
-                      </Button>
-                      {commentItem.likes > 0 && (
-                        <div className="flex items-center gap-1 text-primary">
-                          <Heart className="w-3 h-3" weight="fill" />
-                          <span className="text-[10px] font-bold">{commentItem.likes}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Replies */}
-                {commentItem.replies?.map((reply) => (
-                  <div key={reply.id} className="flex gap-4 ml-12">
-                    {reply.author.avatar ? (
-                      <div
-                        className="size-8 shrink-0 rounded-full bg-cover bg-center"
-                        style={{ backgroundImage: `url(${reply.author.avatar})` }}
-                      />
-                    ) : (
-                      <div className="size-8 shrink-0 rounded-full bg-primary flex items-center justify-center text-white">
-                        <span className="text-xs font-bold">{reply.author.name[0]}</span>
-                      </div>
-                    )}
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold">{reply.author.name}</span>
-                        <span className="text-[11px] text-muted-foreground">• {reply.timestamp}</span>
+                        <span className="text-sm font-bold">{commentItem.author.displayName}</span>
+                        <span className="text-[11px] text-muted-foreground">• {getTimeAgo(commentItem.timestamp)}</span>
                       </div>
-                      <p className="text-sm leading-relaxed">{reply.content}</p>
+                      <p className="text-sm leading-relaxed">{commentItem.content}</p>
                       <div className="flex items-center gap-4 pt-1">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-xs font-bold text-muted-foreground hover:text-primary h-auto py-1 px-0"
+                          onClick={() => handleCommentLike(commentItem.id, commentItem.isLiked || false)}
+                          disabled={commentLikeMutation.isPending}
+                          className={cn(
+                            "text-xs font-bold h-auto py-1 px-0 flex items-center gap-1",
+                            commentItem.isLiked
+                              ? "text-primary hover:text-primary"
+                              : "text-muted-foreground hover:text-primary"
+                          )}
                         >
-                          Like
+                          <Heart
+                            className="w-3.5 h-3.5"
+                            weight={commentItem.isLiked ? "fill" : "regular"}
+                          />
+                          <span>{commentItem.isLiked ? 'Liked' : 'Like'}</span>
+                          {commentItem.likeCount > 0 && (
+                            <span className="ml-0.5">({commentItem.likeCount})</span>
+                          )}
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() =>
+                            handleReplyClick(
+                              commentItem.id,
+                              commentItem.author.displayName,
+                              commentItem.author.id,
+                              `comment-${commentItem.id}`
+                            )
+                          }
                           className="text-xs font-bold text-muted-foreground hover:text-primary h-auto py-1 px-0"
                         >
                           Reply
                         </Button>
                       </div>
+                      {replyTargetId === commentItem.id && replyTargetAnchorId === `comment-${commentItem.id}` && (
+                        <div className="mt-3 rounded-lg border bg-muted/40 p-3">
+                          {replyToLabel && (
+                            <p className="text-[11px] text-muted-foreground mb-2">
+                              Replying to {replyToLabel}
+                            </p>
+                          )}
+                          <Textarea
+                            value={replyContent}
+                            onChange={(e) => setReplyContent(e.target.value)}
+                            onClick={() => guard()}
+                            placeholder="Write a reply..."
+                            className="min-h-[60px] resize-none bg-white"
+                            disabled={replyMutation.isPending}
+                          />
+                          <div className="mt-2 flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleReplyCancel}
+                              disabled={replyMutation.isPending}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={handleReplySubmit}
+                              disabled={!replyContent.trim() || replyMutation.isPending}
+                            >
+                              {replyMutation.isPending ? 'Replying...' : 'Post Reply'}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
-            ))}
-          </div>
+
+                  {/* Replies */}
+                  {commentItem.replies?.map((reply) => (
+                    <div key={reply.id} className="flex gap-4 ml-12">
+                      <div
+                        className="size-8 shrink-0 rounded-full bg-cover bg-center"
+                        style={{ backgroundImage: `url(${getAvatarUrl(reply.author.id || reply.author.displayName, reply.author.userType)})` }}
+                      />
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold">{reply.author.displayName}</span>
+                          <span className="text-[11px] text-muted-foreground">• {getTimeAgo(reply.timestamp)}</span>
+                        </div>
+                        {reply.mentions?.length ? (
+                          <p className="text-[11px] text-muted-foreground">
+                            Replying to {getReplyTargetName(reply, commentItem)}
+                          </p>
+                        ) : null}
+                        <p className="text-sm leading-relaxed">{reply.content}</p>
+                        <div className="flex items-center gap-4 pt-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCommentLike(reply.id, reply.isLiked || false)}
+                            disabled={commentLikeMutation.isPending}
+                            className={cn(
+                              "text-xs font-bold h-auto py-1 px-0 flex items-center gap-1",
+                              reply.isLiked
+                                ? "text-primary hover:text-primary"
+                                : "text-muted-foreground hover:text-primary"
+                            )}
+                          >
+                            <Heart
+                              className="w-3.5 h-3.5"
+                              weight={reply.isLiked ? "fill" : "regular"}
+                            />
+                            <span>{reply.isLiked ? 'Liked' : 'Like'}</span>
+                            {reply.likeCount > 0 && (
+                              <span className="ml-0.5">({reply.likeCount})</span>
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              handleReplyClick(
+                                commentItem.id,
+                                reply.author.displayName,
+                                reply.author.id,
+                                `reply-${reply.id}`
+                              )
+                            }
+                            className="text-xs font-bold text-muted-foreground hover:text-primary h-auto py-1 px-0"
+                          >
+                            Reply
+                          </Button>
+                        </div>
+                        {replyTargetId === commentItem.id && replyTargetAnchorId === `reply-${reply.id}` && (
+                          <div className="mt-3 rounded-lg border bg-muted/40 p-3">
+                            {replyToLabel && (
+                              <p className="text-[11px] text-muted-foreground mb-2">
+                                Replying to {replyToLabel}
+                              </p>
+                            )}
+                            <Textarea
+                              value={replyContent}
+                              onChange={(e) => setReplyContent(e.target.value)}
+                              onClick={() => guard()}
+                              placeholder="Write a reply..."
+                              className="min-h-[60px] resize-none bg-white"
+                              disabled={replyMutation.isPending}
+                            />
+                            <div className="mt-2 flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleReplyCancel}
+                                disabled={replyMutation.isPending}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={handleReplySubmit}
+                                disabled={!replyContent.trim() || replyMutation.isPending}
+                              >
+                                {replyMutation.isPending ? 'Replying...' : 'Post Reply'}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

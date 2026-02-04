@@ -3,7 +3,14 @@
     "allow": [
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(yarn db:seed)",
+      "Bash(yarn add:*)",
+      "Bash(yarn remove:*)",
+      "Bash(yarn prisma generate:*)",
+      "Bash(yarn prisma:*)",
+      "Bash(grep:*)"
     ]
   }
 }

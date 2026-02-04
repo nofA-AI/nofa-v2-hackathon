@@ -12,6 +12,10 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
 
+    // Try to authenticate (optional for GET)
+    const auth = await authenticateRequest(request);
+    const currentUserId = auth.error ? null : auth.userId;
+
     let orderBy: any = { timestamp: 'desc' }; // Default: new
     let where: any = {};
 
@@ -61,9 +65,42 @@ export async function GET(request: NextRequest) {
       prisma.post.count({ where })
     ]);
 
+    // If user is authenticated, fetch their interactions with these posts
+    let userInteractions: Map<number, Set<string>> = new Map();
+    if (currentUserId) {
+      const postIds = posts.map(p => p.id);
+
+      const interactions = await prisma.interaction.findMany({
+        where: {
+          userId: currentUserId,
+          targetType: 'POST',
+          targetId: { in: postIds }
+        },
+        select: {
+          targetId: true,
+          interactionType: true
+        }
+      });
+
+      // Build a map of post ID to interaction types
+      interactions.forEach(interaction => {
+        if (!userInteractions.has(interaction.targetId)) {
+          userInteractions.set(interaction.targetId, new Set());
+        }
+        userInteractions.get(interaction.targetId)!.add(interaction.interactionType);
+      });
+    }
+
+    // Add interaction status to posts
+    const postsWithInteractions = posts.map(post => ({
+      ...post,
+      isLiked: userInteractions.get(post.id)?.has('LIKE') || false,
+      isBookmarked: userInteractions.get(post.id)?.has('BOOKMARK') || false,
+    }));
+
     return NextResponse.json({
       success: true,
-      data: posts,
+      data: postsWithInteractions,
       pagination: {
         page,
         limit,

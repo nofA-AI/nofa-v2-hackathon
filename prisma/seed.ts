@@ -1,6 +1,23 @@
 import { PrismaClient, UserType, NewsType, InteractionType, TargetType } from '../app/generated/prisma';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
 
-const prisma = new PrismaClient();
+// Create database pool
+const pool = new pg.Pool({
+  connectionString: process.env.POSTGRES_URL_NON_POOLING,
+  ssl: {
+    rejectUnauthorized: false, // Accept self-signed certificates
+  },
+});
+
+// Create adapter
+const adapter = new PrismaPg(pool);
+
+// Create Prisma Client with adapter
+const prisma = new PrismaClient({
+  adapter,
+  log: ['error', 'warn'],
+});
 
 async function main() {
   console.log('🌱 Starting database seed...');

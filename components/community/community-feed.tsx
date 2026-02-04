@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { PostCard } from './post-card';
 import { useUser } from '@/lib/hooks/use-user';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api/client';
 import {
   Clock,
   Fire,
@@ -13,66 +15,192 @@ import {
   Image as ImageIcon,
   VideoCamera,
 } from '@phosphor-icons/react';
+import { toast } from 'sonner';
+import { getAvatarUrl } from '@/lib/utils/avatar';
 
 type FilterType = 'new' | 'hot' | 'bookmarks';
 
-const mockPosts = [
-  {
-    id: '1',
-    author: {
-      name: 'QuantMaster',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD858AEeWnm4L8i_8YwMwEZOxDYZl8GiV7ThWcHAR1b6q0I5lRpLONvLleLGeiKaNAknzgPwDlWXK-0Y1mTE-CzFkj3lFj6mn7PbpF6ufIC31Q4kJ-kehrcM5YWoEG6XDBGq7QCfa3GurzDtfwLQ_ZqMvqg-ArrFqhBVB0WsN7zfoDGh5BEmyj_WIAwsA7AmBQ0MZZEc-fF4GNsEsrG3ujpV5IhgY1odODGC_7TexaT-3P5MTCmDA5CLCj8LZlYh0TGSShKatbj97w',
-    },
-    title: 'Neural Net Momentum v3.2 - Live Performance Update',
-    content: 'After the recent volatility in the ETH/BTC pair, the new RSI-based threshold filter has significantly reduced false signals. The backtest results match our live execution logs with 98% precision.',
-    timestamp: '2h ago',
-    stats: {
-      likes: 124,
-      comments: 18,
-      bookmarks: 32,
-    },
-    strategy: {
-      roi: '+14.2%',
-      maxDrawdown: '-2.1%',
-      sharpe: '3.12',
-    },
-  },
-  {
-    id: '2',
-    author: {
-      name: 'NOFA_User_4921',
-      avatar: null,
-    },
-    title: 'SOL/USDT local resistance breakdown?',
-    content: 'Seeing some interesting divergence on the 4H timeframe. Price is testing the previous weekly high but volume is tapering off. Might see a pullback to the 20-day EMA before any further leg up.',
-    timestamp: '5h ago',
-    stats: {
-      likes: 42,
-      comments: 7,
-      bookmarks: 12,
-    },
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuANRBE35ltFeouHHOA_XX3ieU55Ifi7uArn2stkV9cdFQxERKY__aTchd8qpakGYegHO-tHe0h2IKYvUrkrzlStMVwfQwjmLcboL-DR9JvGanFZT-901TYGey9RjK0sHtLtlCWbJh-ufVyB1VLpVkKFF8WfGB-BGjHWSsbcu0DbobwAs57k0ACYhzvERpd_f7gbxnd3MGIL1X-Rl0ulQUX-ozK6A4oHATFLhW_RMMtclmT_51nQKO9FyXoeapTG-2jq55HL33PfLuo',
-  },
-];
+interface Post {
+  id: number;
+  title: string;
+  content: string;
+  timestamp: string;
+  likeCount: number;
+  commentCount: number;
+  bookmarkCount: number;
+  viewCount: number;
+  isLiked?: boolean;
+  isBookmarked?: boolean;
+  media: string[];
+  strategyMetrics?: {
+    roi: number;
+    maxDrawdown: number;
+    sharpeRatio: number;
+    winRate?: number;
+    profitFactor?: number;
+    totalReturn?: number;
+  };
+  author: {
+    id: string;
+    displayName: string;
+    username: string;
+    avatar: string;
+    userType: 'HUMAN' | 'AI_AGENT';
+    isVerified: boolean;
+    badges: string[];
+  };
+}
 
 export function CommunityFeed() {
-  const { user, guard } = useUser();
+  const { user, guard, authenticated } = useUser();
   const [filter, setFilter] = useState<FilterType>('hot');
   const [postContent, setPostContent] = useState('');
+  const queryClient = useQueryClient();
+
+  // Fetch posts based on filter
+  const { data: posts = [], isLoading } = useQuery({
+    queryKey: ['posts', filter],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/posts', {
+        params: { filter, limit: 20 },
+      });
+      return response.data.data;
+    },
+  });
+
+  // Create post mutation
+  const createPostMutation = useMutation({
+    mutationFn: async (data: { title: string; content: string }) => {
+      const response = await apiClient.post('/api/posts', data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      setPostContent('');
+      toast.success('Post created successfully!');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to create post');
+    },
+  });
 
   const handlePostClick = () => {
     if (!guard()) return;
-    // Handle post creation
+    if (!postContent.trim()) {
+      toast.error('Please write something');
+      return;
+    }
+
+    createPostMutation.mutate({
+      title: postContent.slice(0, 100), // Use first 100 chars as title
+      content: postContent,
+    });
   };
 
-  const handleLikeClick = () => {
+  const likeMutation = useMutation({
+    mutationFn: async ({ postId, isLiked }: { postId: number; isLiked: boolean }) => {
+      if (isLiked) {
+        await apiClient.delete('/api/interactions', {
+          params: {
+            targetType: 'POST',
+            targetId: postId,
+            interactionType: 'LIKE',
+          },
+        });
+      } else {
+        await apiClient.post('/api/interactions', {
+          targetType: 'POST',
+          targetId: postId,
+          interactionType: 'LIKE',
+        });
+      }
+    },
+    onMutate: async ({ postId, isLiked }) => {
+      await queryClient.cancelQueries({ queryKey: ['posts', filter] });
+
+      const previousPosts = queryClient.getQueryData(['posts', filter]);
+
+      queryClient.setQueryData(['posts', filter], (old: Post[] | undefined) => {
+        if (!old) return old;
+        return old.map((post) => {
+          if (post.id !== postId) return post;
+          return {
+            ...post,
+            isLiked: !isLiked,
+            likeCount: isLiked ? post.likeCount - 1 : post.likeCount + 1,
+          };
+        });
+      });
+
+      return { previousPosts };
+    },
+    onError: (error: any, variables, context) => {
+      if (context?.previousPosts) {
+        queryClient.setQueryData(['posts', filter], context.previousPosts);
+      }
+      toast.error(error.response?.data?.error || 'Failed to toggle like');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts', filter] });
+    },
+  });
+
+  const bookmarkMutation = useMutation({
+    mutationFn: async ({ postId, isBookmarked }: { postId: number; isBookmarked: boolean }) => {
+      if (isBookmarked) {
+        await apiClient.delete('/api/interactions', {
+          params: {
+            targetType: 'POST',
+            targetId: postId,
+            interactionType: 'BOOKMARK',
+          },
+        });
+      } else {
+        await apiClient.post('/api/interactions', {
+          targetType: 'POST',
+          targetId: postId,
+          interactionType: 'BOOKMARK',
+        });
+      }
+    },
+    onMutate: async ({ postId, isBookmarked }) => {
+      await queryClient.cancelQueries({ queryKey: ['posts', filter] });
+
+      const previousPosts = queryClient.getQueryData(['posts', filter]);
+
+      queryClient.setQueryData(['posts', filter], (old: Post[] | undefined) => {
+        if (!old) return old;
+        return old.map((post) => {
+          if (post.id !== postId) return post;
+          return {
+            ...post,
+            isBookmarked: !isBookmarked,
+            bookmarkCount: isBookmarked ? post.bookmarkCount - 1 : post.bookmarkCount + 1,
+          };
+        });
+      });
+
+      return { previousPosts };
+    },
+    onError: (error: any, variables, context) => {
+      if (context?.previousPosts) {
+        queryClient.setQueryData(['posts', filter], context.previousPosts);
+      }
+      toast.error(error.response?.data?.error || 'Failed to toggle bookmark');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts', filter] });
+    },
+  });
+
+  const handleLikeClick = (postId: number, isLiked: boolean) => {
     if (!guard()) return;
-    // Handle like
+    likeMutation.mutate({ postId, isLiked });
   };
 
-  const handleBookmarkClick = () => {
+  const handleBookmarkClick = (postId: number, isBookmarked: boolean) => {
     if (!guard()) return;
-    // Handle bookmark
+    bookmarkMutation.mutate({ postId, isBookmarked });
   };
 
   return (
@@ -170,14 +298,63 @@ export function CommunityFeed() {
 
       {/* Feed Posts */}
       <div className="space-y-6">
-        {mockPosts.map((post) => (
-          <PostCard
-            key={post.id}
-            post={post}
-            onLike={handleLikeClick}
-            onBookmark={handleBookmarkClick}
-          />
-        ))}
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+            <p className="mt-4 text-sm text-muted-foreground">Loading posts...</p>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="text-center py-12 bg-card border rounded-xl">
+            <p className="text-muted-foreground">No posts found</p>
+            {authenticated && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Be the first to share something!
+              </p>
+            )}
+          </div>
+        ) : (
+          posts.map((post: Post) => {
+            // Transform API data to PostCard format
+            const transformedPost = {
+              id: post.id.toString(),
+              author: {
+                name: post.author.displayName,
+                avatar: getAvatarUrl(
+                  post.author.id || post.author.displayName,
+                  post.author.userType
+                ),
+                badge: post.author.isVerified ? post.author.badges[0] : undefined,
+              },
+              title: post.title,
+              content: post.content,
+              timestamp: new Date(post.timestamp).toLocaleDateString(),
+              stats: {
+                likes: post.likeCount,
+                comments: post.commentCount,
+                bookmarks: post.bookmarkCount,
+              },
+              isLiked: post.isLiked,
+              isBookmarked: post.isBookmarked,
+              strategy: post.strategyMetrics
+                ? {
+                    roi: `${Number(post.strategyMetrics.roi) > 0 ? '+' : ''}${Number(post.strategyMetrics.roi).toFixed(1)}%`,
+                    maxDrawdown: `${Number(post.strategyMetrics.maxDrawdown).toFixed(1)}%`,
+                    sharpe: Number(post.strategyMetrics.sharpeRatio).toFixed(2),
+                  }
+                : undefined,
+              image: post.media[0],
+            };
+
+            return (
+              <PostCard
+                key={post.id}
+                post={transformedPost}
+                onLike={() => handleLikeClick(post.id, post.isLiked || false)}
+                onBookmark={() => handleBookmarkClick(post.id, post.isBookmarked || false)}
+              />
+            );
+          })
+        )}
       </div>
     </>
   );

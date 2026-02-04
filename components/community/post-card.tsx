@@ -38,6 +38,8 @@ interface Post {
   stats: PostStats;
   strategy?: PostStrategy;
   image?: string;
+  isLiked?: boolean;
+  isBookmarked?: boolean;
 }
 
 interface PostCardProps {
@@ -48,18 +50,14 @@ interface PostCardProps {
 
 export function PostCard({ post, onLike, onBookmark }: PostCardProps) {
   const router = useRouter();
-  const [isLiked, setIsLiked] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
 
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsLiked(!isLiked);
     onLike();
   };
 
   const handleBookmark = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsBookmarked(!isBookmarked);
     onBookmark();
   };
 
@@ -217,19 +215,22 @@ export function PostCard({ post, onLike, onBookmark }: PostCardProps) {
               onClick={handleLike}
               className={cn(
                 'flex items-center gap-1.5 text-sm font-medium',
-                isLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary'
+                post.isLiked ? 'text-red-500 hover:text-red-600' : 'text-muted-foreground hover:text-primary'
               )}
             >
               <Heart
                 className="w-5 h-5"
-                weight={isLiked ? 'fill' : 'bold'}
+                weight={post.isLiked ? 'fill' : 'bold'}
               />
-              {post.stats.likes + (isLiked ? 1 : 0)}
+              {post.stats.likes}
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCardClick();
+              }}
               className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
             >
               <ChatCircle className="w-5 h-5" weight="bold" />
@@ -241,14 +242,14 @@ export function PostCard({ post, onLike, onBookmark }: PostCardProps) {
               onClick={handleBookmark}
               className={cn(
                 'flex items-center gap-1.5 text-sm font-medium',
-                isBookmarked ? 'text-primary' : 'text-muted-foreground hover:text-primary'
+                post.isBookmarked ? 'text-primary hover:text-primary' : 'text-muted-foreground hover:text-primary'
               )}
             >
               <Bookmark
                 className="w-5 h-5"
-                weight={isBookmarked ? 'fill' : 'bold'}
+                weight={post.isBookmarked ? 'fill' : 'bold'}
               />
-              {post.stats.bookmarks + (isBookmarked ? 1 : 0)}
+              {post.stats.bookmarks}
             </Button>
           </div>
           <span className="text-xs font-bold text-primary hover:underline" onClick={handleCardClick}>
