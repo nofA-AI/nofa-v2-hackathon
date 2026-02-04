@@ -10,6 +10,7 @@ import { ApiClientProvider } from '@/components/api-client-provider'
 import { QueryProvider } from '@/components/query-provider'
 import { LayoutWrapper } from './layout-wrapper'
 import { publicPaths } from './config'
+import { CommunityLoginModal } from '@/components/community-login-modal'
 
 export const metadata: Metadata = {
   title: 'NOFA Strategy - AI Trading Strategy Builder',
@@ -41,6 +42,7 @@ export default function MainLayout({
               </AuthGuard>
             </div>
           </LayoutWrapper>
+          <CommunityLoginModal />
         </ApiClientProvider>
       </QueryProvider>
       <Toaster position="top-center" richColors />

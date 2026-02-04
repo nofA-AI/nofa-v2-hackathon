@@ -14,10 +14,34 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { publicPaths } from '@/app/(main)/config';
 
 export function Header() {
   const { ready, authenticated, user, login, logout } = usePrivy();
   const pathname = usePathname();
+  const openLoginModal = useAuthStore((state) => state.openLoginModal);
+
+  // Check if current path is public
+  const isPublicPath = publicPaths.some((path) => {
+    if (path === pathname) return true;
+    if (path.endsWith('/*')) {
+      const basePath = path.slice(0, -2);
+      return pathname.startsWith(basePath);
+    }
+    return false;
+  });
+
+  // Handle sign in based on current path
+  const handleSignIn = () => {
+    if (isPublicPath) {
+      // For public paths like /community, use custom login modal
+      openLoginModal('human');
+    } else {
+      // For protected paths, use Privy login directly
+      login();
+    }
+  };
 
   return (
     <header className="flex items-center justify-between h-14 px-4 border-b border-border bg-card">
@@ -92,7 +116,7 @@ export function Header() {
         </DropdownMenu>
       ) : (
         <Button
-          onClick={login}
+          onClick={handleSignIn}
           variant="default"
         >
           Sign In
