@@ -1701,6 +1701,11 @@
   dependencies:
     undici-types "~6.21.0"
 
+"@types/numeral@^2.0.5":
+  version "2.0.5"
+  resolved "https://registry.npmmirror.com/@types/numeral/-/numeral-2.0.5.tgz#388e5c4ff4b0e1787f130753cbbe83d3ba770858"
+  integrity sha512-kH8I7OSSwQu9DS9JYdFWbuvhVzvFRoCPCkGxNwoGgaPeDfEPJlcxNvEOypZhQ3XXHsGbfIuYcxcJxKUfJHnRfw==
+
 "@types/pako@^2.0.3":
   version "2.0.4"
   resolved "https://registry.npmmirror.com/@types/pako/-/pako-2.0.4.tgz#c3575ef8125e176c345fa0e7b301c1db41170c15"
@@ -2463,6 +2468,11 @@ extend@^3.0.0:
   resolved "https://registry.npmmirror.com/extend/-/extend-3.0.2.tgz"
   integrity sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==
 
+fancy-canvas@2.1.0:
+  version "2.1.0"
+  resolved "https://registry.npmmirror.com/fancy-canvas/-/fancy-canvas-2.1.0.tgz#44b40e40419ad8ef8304df365e4276767e918552"
+  integrity sha512-nifxXJ95JNLFR2NgRV4/MxVP45G9909wJTEKz5fg/TZS20JJZA6hfgRVh/bC9bwl2zBtBNcYPjiBE4njQHVBwQ==
+
 fast-equals@^5.0.1:
   version "5.4.0"
   resolved "https://registry.npmmirror.com/fast-equals/-/fast-equals-5.4.0.tgz"
@@ -2900,6 +2910,13 @@ lightningcss@1.30.2:
     lightningcss-linux-x64-musl "1.30.2"
     lightningcss-win32-arm64-msvc "1.30.2"
     lightningcss-win32-x64-msvc "1.30.2"
+
+lightweight-charts@^5.1.0:
+  version "5.1.0"
+  resolved "https://registry.npmmirror.com/lightweight-charts/-/lightweight-charts-5.1.0.tgz#250de702ef4ec608e7e961e5eb07519febd5b89e"
+  integrity sha512-jEAYR4ODYeyNZcWUigsoLTl52rbPmgXnvd5FLIv/ZoA/2sSDw63YKnef8n4yhzum7W926yHeFwlm7ididKb7YQ==
+  dependencies:
+    fancy-canvas "2.1.0"
 
 linkify-it@^3.0.3:
   version "3.0.3"
@@ -3583,6 +3600,11 @@ node-releases@^2.0.27:
   resolved "https://registry.npmmirror.com/node-releases/-/node-releases-2.0.27.tgz"
   integrity sha512-nmh3lCkYZ3grZvqcCH+fjmQ7X+H0OeZgP40OierEaAptX4XofMh5kwNbWh7lBduUzCcV/8kZ+NDLCwm2iorIlA==
 
+numeral@^2.0.6:
+  version "2.0.6"
+  resolved "https://registry.npmmirror.com/numeral/-/numeral-2.0.6.tgz#4ad080936d443c2561aed9f2197efffe25f4e506"
+  integrity sha512-qaKRmtYPZ5qdw4jWJD6bxEf1FJEqllJrwxCLIm0sQU/A7v2/czigzOb+C2uSiFsa9lBUzeH7M1oK+Q+OLxL3kA==
+
 object-assign@^4.1.1:
   version "4.1.1"
   resolved "https://registry.npmmirror.com/object-assign/-/object-assign-4.1.1.tgz"
@@ -4221,6 +4243,11 @@ ts-dedent@^2.2.0:
   version "2.2.0"
   resolved "https://registry.npmmirror.com/ts-dedent/-/ts-dedent-2.2.0.tgz#39e4bd297cd036292ae2394eb3412be63f563bb5"
   integrity sha512-q5W7tVM71e2xjHZTlgfTDoPF/SmqKG5hddq9SzR49CH2hayqRKJtQ4mtRlSxKaJlR/+9rEM+mnBHf7I2/BQcpQ==
+
+ts-pattern@^5.9.0:
+  version "5.9.0"
+  resolved "https://registry.npmmirror.com/ts-pattern/-/ts-pattern-5.9.0.tgz#f0fb5205ce0b0c59af72beba62fee7612a61cea4"
+  integrity sha512-6s5V71mX8qBUmlgbrfL33xDUwO0fq48rxAu2LBE11WBeGdpCPOsXksQbZJHvHwhrd3QjUusd3mAOM5Gg0mFBLg==
 
 tslib@2.3.0:
   version "2.3.0"

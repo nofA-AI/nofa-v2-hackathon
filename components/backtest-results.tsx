@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, ArrowsClockwise, ChartLine, Calendar, Wallet, Warning, Sparkle } from '@phosphor-icons/react';
+import { Play, ArrowsClockwise, ChartLine, Calendar, Wallet, Warning, Sparkle, Trash } from '@phosphor-icons/react';
 import { jsPDF } from 'jspdf';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,6 +27,7 @@ import { useStrategyStore } from '@/lib/store/strategy-store';
 import { BacktestParams, BacktestResult, DEFAULT_BACKTEST_PARAMS } from '@/lib/types/strategy';
 import { runBacktest as runBacktestAPI } from '@/lib/backtest';
 import { BacktestDialog } from '@/components/backtest-dialog';
+import { TradingViewLightSeriesChart } from '@/components/tradingview/tradingview-light-series-chart';
 import {
   Select,
   SelectContent,
@@ -34,9 +35,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import * as echarts from 'echarts';
 import dayjs from 'dayjs';
 import BigNumber from 'bignumber.js';
+import type { SeriesMarker, Time } from 'lightweight-charts';
 
 interface BacktestResultsProps {
   onReadyToRunBacktest?: (runner: () => Promise<void>) => void;
@@ -49,7 +52,7 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
   const [backtestParams, setBacktestParams] = useState<BacktestParams>(DEFAULT_BACKTEST_PARAMS);
   const [selectedResultIndex, setSelectedResultIndex] = useState<number>(-1);
 
-  const { currentStrategyId, backtestResults, addBacktestResult, history } =
+  const { currentStrategyId, backtestResults, addBacktestResult, removeBacktestResult, history } =
     useStrategyStore();
 
   const currentResults = currentStrategyId
@@ -77,6 +80,25 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
     mainDecision &&
     mainDecision.conditions.length > 0 &&
     (mainDecision.thenAction !== 'NO ACTION' || mainDecision.elseAction !== 'NO ACTION');
+
+  const extractTicker = (rawSymbol?: string | null) => {
+    if (!rawSymbol) return null;
+    const normalized = rawSymbol.toUpperCase();
+    if (normalized.includes('/')) return normalized.split('/')[0];
+    if (normalized.includes('-')) return normalized.split('-')[0];
+    if (normalized.endsWith('USDT')) return normalized.replace(/USDT$/, '');
+    return normalized;
+  };
+
+  const chartTickers = (() => {
+    const rawSymbols = latestResult?.positions?.map((position) => position.symbol) || [];
+    const extracted = rawSymbols
+      .map((rawSymbol) => extractTicker(rawSymbol))
+      .filter((symbol): symbol is string => Boolean(symbol));
+
+    const unique = Array.from(new Set(extracted));
+    return unique.length > 0 ? unique : ['BTC'];
+  })();
 
   const runBacktest = useCallback(async () => {
     if (!currentStrategyId || !isStrategyValid) return;
@@ -191,6 +213,13 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
       files: [file],
     });
   }, [onSendMessage]);
+
+  const handleDeleteBacktest = useCallback(() => {
+    if (!currentStrategyId || !latestResult) return;
+    const ok = window.confirm('Delete this backtest result? This cannot be undone.');
+    if (!ok) return;
+    removeBacktestResult(currentStrategyId, latestResult.id);
+  }, [currentStrategyId, latestResult, removeBacktestResult]);
 
   useEffect(() => {
     if (onReadyToRunBacktest) {
@@ -346,6 +375,15 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
                   Analyze Backtest
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleDeleteBacktest}
+                className="gap-1.5 text-xs h-7 text-destructive hover:text-destructive"
+              >
+                <Trash className="w-3.5 h-3.5" />
+                Delete
+              </Button>
 
             </div>
           </div>
@@ -414,81 +452,152 @@ export function BacktestResults({ onReadyToRunBacktest, onSendMessage }: Backtes
           />
         </div>
 
-        {/* Positions Table */}
-        <div className="bg-card rounded-lg border border-border p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium">Trade History</h3>
-            <span className="text-xs text-muted-foreground">
-              {latestResult.positions.length} {latestResult.positions.length === 1 ? 'trade' : 'trades'}
-            </span>
-          </div>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[100px]">Date</TableHead>
-                  <TableHead>Symbol</TableHead>
-                  <TableHead>Side</TableHead>
-                  <TableHead className="text-right">Entry Price</TableHead>
-                  <TableHead className="text-right">Exit Price</TableHead>
-                  <TableHead className="text-right">P&L (USD)</TableHead>
-                  <TableHead className="text-right">Return %</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {latestResult.positions.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
-                      No trades executed during backtest period
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  latestResult.positions.map((position, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="text-sm font-mono">{position.date}</TableCell>
-                      <TableCell className="text-sm font-medium">
-                        {position.symbol}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={cn(
-                            'text-xs font-semibold px-2 py-0.5 rounded',
-                            position.direction === 'LONG'
-                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                          )}
-                        >
-                          {position.direction}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right text-sm font-mono">
-                        ${position.entry.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-right text-sm font-mono">
-                        ${position.exit.toFixed(2)}
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          'text-right text-sm font-medium font-mono',
-                          position.pnl >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-                        )}
-                      >
-                        {position.pnl >= 0 ? '+' : '-'}${Math.abs(position.pnl).toFixed(2)}
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          'text-right text-sm font-medium font-mono',
-                          position.pnlPercent >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-                        )}
-                      >
-                        {position.pnlPercent >= 0 ? '+' : ''}{position.pnlPercent.toFixed(2)}%
-                      </TableCell>
+        {/* Chart & Trade History */}
+        <div className="bg-card rounded-lg border border-border p-4 pt-[6px]">
+          <Tabs defaultValue="trades" className="w-full">
+            <div className="flex items-center justify-between mb-4">
+              <TabsList>
+                <TabsTrigger value="trades">Trade History</TabsTrigger>
+                {chartTickers.map((ticker) => (
+                  <TabsTrigger key={ticker} value={`chart-${ticker}`}>
+                    {ticker} K-line
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              <span className="text-xs text-muted-foreground">
+                {latestResult.positions.length} {latestResult.positions.length === 1 ? 'trade' : 'trades'}
+              </span>
+            </div>
+            {chartTickers.map((ticker) => {
+              const markers: SeriesMarker<Time>[] = latestResult.positions
+                .filter((position) => extractTicker(position.symbol) === ticker)
+                .flatMap((position) => {
+                  const openTime = dayjs(position.open_time);
+                  if (!openTime.isValid()) return [];
+                  const isLong = position.direction === 'LONG';
+                  const openMarker: SeriesMarker<Time> = {
+                    time: openTime.unix() as Time,
+                    position: isLong ? 'belowBar' : 'aboveBar',
+                    color: isLong ? '#10b981' : '#ef4444',
+                    shape: 'circle',
+                    text: isLong ? 'L' : 'S',
+                  };
+                  return [openMarker];
+                });
+
+              const tradeTooltips = latestResult.positions
+                .filter((position) => extractTicker(position.symbol) === ticker)
+                .map((position) => {
+                  const openTime = dayjs(position.open_time);
+                  if (!openTime.isValid()) return null;
+                  return {
+                    time: openTime.unix() as Time,
+                    openTime: position.open_time,
+                    closeTime: position.close_time,
+                    entryPrice: position.entry_price,
+                    exitPrice: position.exit_price,
+                    pnl: position.return_pct,
+                    direction: position.direction,
+                  };
+                })
+                .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+              const endTime = latestResult.positions
+                .filter((position) => extractTicker(position.symbol) === ticker)
+                .map((position) => dayjs(position.close_time || position.open_time))
+                .filter((time) => time.isValid())
+                .reduce<number | null>((max, time) => {
+                  const unix = time.unix();
+                  if (max == null || unix > max) return unix;
+                  return max;
+                }, null);
+
+              return (
+                <TabsContent key={ticker} value={`chart-${ticker}`}>
+                  {/* K-line Chart (iframe) */}
+                  <div className="w-full overflow-hidden" style={{
+                    height: 'min(50vh, 500px)'
+                  }}>
+                    <TradingViewLightSeriesChart
+                      symbol={`${ticker}USDT`}
+                      markers={markers}
+                      tradeTooltips={tradeTooltips}
+                      endTime={endTime}
+                    />
+                  </div>
+                </TabsContent>
+              );
+            })}
+            <TabsContent value="trades">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[100px]">Date</TableHead>
+                      <TableHead>Symbol</TableHead>
+                      <TableHead>Side</TableHead>
+                      <TableHead className="text-right">Entry Price</TableHead>
+                      <TableHead className="text-right">Exit Price</TableHead>
+                      <TableHead className="text-right">P&L (USD)</TableHead>
+                      <TableHead className="text-right">Return %</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {latestResult.positions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                          No trades executed during backtest period
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      latestResult.positions.map((position, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="text-sm font-mono">{position.open_time}</TableCell>
+                          <TableCell className="text-sm font-medium">
+                            {position.symbol}
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={cn(
+                                'text-xs font-semibold px-2 py-0.5 rounded',
+                                position.direction === 'LONG'
+                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                              )}
+                            >
+                              {position.direction}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right text-sm font-mono">
+                            ${formatPrice(position.entry_price)}
+                          </TableCell>
+                          <TableCell className="text-right text-sm font-mono">
+                            ${formatPrice(position.exit_price)}
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              'text-right text-sm font-medium font-mono',
+                              position.pnl >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                            )}
+                          >
+                            {position.pnl >= 0 ? '+' : '-'}${Math.abs(position.pnl).toFixed(2)}
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              'text-right text-sm font-medium font-mono',
+                              (position.return_pct ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                            )}
+                          >
+                            {(position.return_pct ?? 0) >= 0 ? '+' : ''}{formatPercent(position.return_pct)}%
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* Rerun Button */}
@@ -536,6 +645,16 @@ function MetricCard({ label, value, isPositive }: MetricCardProps) {
       </p>
     </div>
   );
+}
+
+function formatPrice(value?: number | null) {
+  if (value == null || Number.isNaN(value)) return '-';
+  return value.toFixed(2);
+}
+
+function formatPercent(value?: number | null) {
+  if (value == null || Number.isNaN(value)) return '-';
+  return value.toFixed(2);
 }
 
 interface PerformanceChartProps {
@@ -795,8 +914,8 @@ function generateBacktestMarkdown(result: BacktestResult): string {
 
     positions.forEach(position => {
       const pnlSign = position.pnl >= 0 ? '+' : '-';
-      const returnSign = position.pnlPercent >= 0 ? '+' : '';
-      markdown += `| ${position.date} | ${position.symbol} | ${position.direction} | $${position.entry.toFixed(2)} | $${position.exit.toFixed(2)} | ${pnlSign}$${Math.abs(position.pnl).toFixed(2)} | ${returnSign}${position.pnlPercent.toFixed(2)}% |\n`;
+      const returnSign = position.return_pct >= 0 ? '+' : '';
+      markdown += `| ${position.open_time} | ${position.symbol} | ${position.direction} | $${position.entry_price.toFixed(2)} | $${position.exit_price.toFixed(2)} | ${pnlSign}$${Math.abs(position.pnl).toFixed(2)} | ${returnSign}${position.return_pct.toFixed(2)}% |\n`;
     });
     markdown += `\n`;
   }

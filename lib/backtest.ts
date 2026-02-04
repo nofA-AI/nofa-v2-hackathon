@@ -161,13 +161,17 @@ export const runBacktest = async (
 
     // Convert trades to positions format
     const positions = data.trades.map((trade) => ({
-      date: dayjs(trade.open_time).format('YYYY-MM-DD'),
+      open_time: trade.open_time,
+      close_time: trade.close_time,
       symbol: trade.symbol,
       direction: trade.direction,
-      entry: trade.entry_price,
-      exit: trade.exit_price,
+      entry_price: trade.entry_price,
+      exit_price: trade.exit_price,
+      position_size_usd: trade.position_size_usd,
+      position_size_token: trade.position_size_token,
       pnl: trade.pnl,
-      pnlPercent: trade.return_pct,
+      return_pct: trade.return_pct,
+      cumulative_pnl: trade.cumulative_pnl,
     }));
 
     // Calculate annualized return (use API value if available)
@@ -250,40 +254,56 @@ export const mockRunBacktest = async (
   // Generate mock positions
   const positions = [
     {
-      date: startDate.add(5, 'day').format('YYYY-MM-DD'),
+      open_time: startDate.add(5, 'day').format('YYYY-MM-DD'),
+      close_time: startDate.add(8, 'day').format('YYYY-MM-DD'),
       symbol: 'BTC/USDT',
       direction: 'LONG' as const,
-      entry: 42500,
-      exit: 44200,
+      entry_price: 42500,
+      exit_price: 44200,
+      position_size_usd: 1000,
+      position_size_token: null,
       pnl: 510,
-      pnlPercent: 4.0,
+      return_pct: 4.0,
+      cumulative_pnl: 510,
     },
     {
-      date: startDate.add(15, 'day').format('YYYY-MM-DD'),
+      open_time: startDate.add(15, 'day').format('YYYY-MM-DD'),
+      close_time: startDate.add(18, 'day').format('YYYY-MM-DD'),
       symbol: 'BTC/USDT',
       direction: 'SHORT' as const,
-      entry: 45000,
-      exit: 43500,
+      entry_price: 45000,
+      exit_price: 43500,
+      position_size_usd: 1000,
+      position_size_token: null,
       pnl: 450,
-      pnlPercent: 3.33,
+      return_pct: 3.33,
+      cumulative_pnl: 960,
     },
     {
-      date: startDate.add(25, 'day').format('YYYY-MM-DD'),
+      open_time: startDate.add(25, 'day').format('YYYY-MM-DD'),
+      close_time: startDate.add(29, 'day').format('YYYY-MM-DD'),
       symbol: 'ETH/USDT',
       direction: 'LONG' as const,
-      entry: 2800,
-      exit: 2650,
+      entry_price: 2800,
+      exit_price: 2650,
+      position_size_usd: 1000,
+      position_size_token: null,
       pnl: -225,
-      pnlPercent: -5.36,
+      return_pct: -5.36,
+      cumulative_pnl: 735,
     },
     {
-      date: startDate.add(35, 'day').format('YYYY-MM-DD'),
+      open_time: startDate.add(35, 'day').format('YYYY-MM-DD'),
+      close_time: startDate.add(38, 'day').format('YYYY-MM-DD'),
       symbol: 'BTC/USDT',
       direction: 'LONG' as const,
-      entry: 41000,
-      exit: 43800,
+      entry_price: 41000,
+      exit_price: 43800,
+      position_size_usd: 1000,
+      position_size_token: null,
       pnl: 840,
-      pnlPercent: 6.83,
+      return_pct: 6.83,
+      cumulative_pnl: 1575,
     },
   ];
 
@@ -306,4 +326,3 @@ export const mockRunBacktest = async (
     positions,
   };
 };
-

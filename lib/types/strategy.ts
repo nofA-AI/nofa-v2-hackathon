@@ -180,13 +180,17 @@ export interface BacktestResult {
     value: number;
   }[];
   positions: {
-    date: string;
+    open_time: string;
+    close_time: string;
     symbol: string;
     direction: OrderDirection;
-    entry: number;
-    exit: number;
+    entry_price: number;
+    exit_price: number;
+    position_size_usd: number;
+    position_size_token: number | null;
     pnl: number;
-    pnlPercent: number;
+    return_pct: number;
+    cumulative_pnl: number;
   }[];
   createdAt: string;
 }

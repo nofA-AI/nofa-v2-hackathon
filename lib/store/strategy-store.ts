@@ -49,6 +49,7 @@ interface StrategyStore {
 
   // Backtest
   addBacktestResult: (strategyId: string, result: Omit<BacktestResult, 'id' | 'createdAt'>) => void;
+  removeBacktestResult: (strategyId: string, resultId: string) => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 15);
@@ -246,6 +247,19 @@ export const useStrategyStore = create<StrategyStore>()(
             [strategyId]: [...(state.backtestResults[strategyId] || []), newResult],
           },
         }));
+      },
+
+      removeBacktestResult: (strategyId, resultId) => {
+        set((state) => {
+          const current = state.backtestResults[strategyId] || [];
+          const next = current.filter((result) => result.id !== resultId);
+          return {
+            backtestResults: {
+              ...state.backtestResults,
+              [strategyId]: next,
+            },
+          };
+        });
       },
     }),
     {
