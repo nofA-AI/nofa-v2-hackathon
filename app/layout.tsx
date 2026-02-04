@@ -4,6 +4,9 @@ import type { Metadata } from 'next'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
 import './globals.css'
+import { Providers } from './providers'
+import { AuthGuard } from '@/components/auth-guard'
+import { Header } from '@/components/header'
 
 // const _geist = Geist({ subsets: ["latin"] });
 // const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -30,7 +33,24 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`font-sans antialiased`}>
-        {children}
+        <Providers>
+          <div className="h-screen flex flex-col">
+            <Header />
+            <div className="flex-1 overflow-hidden">
+              <AuthGuard
+                publicPaths={[
+                  '/about',
+                  '/docs/*',
+                  '/community/*',
+                  '/terms',
+                  '/privacy',
+                ]}
+              >
+                {children}
+              </AuthGuard>
+            </div>
+          </div>
+        </Providers>
         <Toaster position="top-center" richColors />
         <Analytics />
       </body>

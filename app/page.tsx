@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Header } from '@/components/header';
 import { StrategyListSidebar } from '@/components/strategy-list-sidebar';
 import { MainContentArea } from '@/components/main-content-area';
 import { AIChatPanel } from '@/components/ai-chat-panel';
@@ -299,13 +298,11 @@ export default function HomePage() {
   }, [isResizing]);
 
   return (
-    <div className="h-screen flex flex-col relative overflow-hidden" ref={containerRef}>
-      <Header />
-      <div className="flex-1 flex overflow-hidden">
-        <StrategyListSidebar />
+    <div className="h-full flex relative overflow-hidden" ref={containerRef}>
+      <StrategyListSidebar />
 
-        {/* Main content area wrapper - relative positioning for GuideView */}
-        <div className="flex-1 flex relative overflow-hidden">
+      {/* Main content area wrapper - relative positioning for GuideView */}
+      <div className="flex-1 flex relative overflow-hidden">
           <AIChatPanel
             width={chatPanelWidth}
             onApplyStrategy={handleApplyStrategy}
@@ -334,7 +331,6 @@ export default function HomePage() {
             )}
           </AnimatePresence>
         </div>
-      </div>
 
       <AnimatePresence>
         {showOverlay && (
