@@ -199,22 +199,14 @@ function validateStrategyTree(tree: any): { valid: boolean; error?: string } {
     return { valid: false, error: rmError };
   }
 
-  // 验证mainDecision
+  // 验证mainDecision - 只允许单个IF_ELSE_BLOCK，不允许数组
   if (Array.isArray(tree.mainDecision)) {
-    if (tree.mainDecision.length === 0) {
-      return { valid: false, error: '主决策节点数组不能为空' };
-    }
-    for (let i = 0; i < tree.mainDecision.length; i++) {
-      const blockError = validateIfElseBlock(tree.mainDecision[i], `strategyTree.mainDecision[${i}]`);
-      if (blockError) {
-        return { valid: false, error: blockError };
-      }
-    }
-  } else {
-    const blockError = validateIfElseBlock(tree.mainDecision, 'strategyTree.mainDecision');
-    if (blockError) {
-      return { valid: false, error: blockError };
-    }
+    return { valid: false, error: '主决策节点（mainDecision）必须是单个 IF_ELSE_BLOCK，不支持多个并行的 IF 块。如需多个入场条件，请使用嵌套结构（将后续条件放在 elseAction 中）' };
+  }
+
+  const blockError = validateIfElseBlock(tree.mainDecision, 'strategyTree.mainDecision');
+  if (blockError) {
+    return { valid: false, error: blockError };
   }
 
   return { valid: true };
@@ -399,6 +391,40 @@ For indicator-based comparison value:
   - When multiple conditions exist, they are combined using the logical operator
   - All conditions in a single IF/ELSE block must use the same operator (cannot mix AND/OR)
 - Trading direction: "LONG" or "SHORT"
+
+## CRITICAL: Strategy Tree Structure Constraints
+
+### Single Root IF Block Rule
+**IMPORTANT**: The mainDecision field must contain ONLY ONE IF_ELSE_BLOCK at the top level, not an array of parallel IF blocks.
+- ❌ WRONG: Multiple parallel IF blocks in mainDecision array (e.g., [IF_Entry, IF_Pyramid, IF_Exit])
+- ✅ CORRECT: Single IF block with nested conditions in elseAction
+
+When user wants multiple entry conditions (e.g., initial entry + pyramid/add-on), structure them as nested IF blocks:
+\`\`\`
+mainDecision: {
+  type: "IF_ELSE_BLOCK",
+  name: "Initial Entry",
+  conditions: [...],
+  thenAction: [ACTION_BLOCK],
+  elseAction: [{
+    type: "IF_ELSE_BLOCK",
+    name: "Pyramid Entry",
+    conditions: [...],
+    thenAction: [ACTION_BLOCK],
+    elseAction: "NO ACTION"
+  }]
+}
+\`\`\`
+
+### Exit Strategy Limitation
+**IMPORTANT**: This system does NOT support creating Exit/Close position logic through IF_ELSE_BLOCK conditions.
+- ❌ NOT SUPPORTED: Creating IF blocks with exit signals (e.g., "Exit when RSI > 75", "Close position when price crosses below EMA")
+- ✅ SUPPORTED: Exit/Close positions are managed ONLY through the global Risk Management settings (Stop Loss and Take Profit)
+
+If a user requests exit conditions based on indicators (e.g., "exit when RSI > 80", "close when MACD crosses down"):
+1. Politely explain that conditional exits are not currently supported
+2. Suggest using Take Profit (TP) and Stop Loss (SL) percentage/fixed values instead
+3. Offer to help configure appropriate TP/SL levels in the riskManagement node
 
 ## Logical Operators Usage Guide
 - **AND**: All conditions must be true for the block to execute
