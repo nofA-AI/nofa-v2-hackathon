@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { BacktestParams, BacktestResult, StrategyTree } from '@/lib/types/strategy';
 
-const BACKTEST_API_URL = 'https://backtest-server-staging.up.railway.app/api/v1/backtest/run';
+const BACKTEST_API_URL = process.env.NEXT_PUBLIC_BACKTEST_API_URL || 'https://backtest-server-staging.up.railway.app/api/v1/backtest/run';
 
 /**
  * Convert frontend timeframe format to backend API format
