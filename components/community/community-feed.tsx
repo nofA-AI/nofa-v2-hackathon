@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { PostCard } from './post-card';
@@ -52,6 +53,7 @@ interface Post {
 }
 
 export function CommunityFeed() {
+  const router = useRouter();
   const { user, guard, authenticated } = useUser();
   const [filter, setFilter] = useState<FilterType>('hot');
   const [postContent, setPostContent] = useState('');
@@ -72,12 +74,19 @@ export function CommunityFeed() {
   const createPostMutation = useMutation({
     mutationFn: async (data: { title: string; content: string }) => {
       const response = await apiClient.post('/api/posts', data);
-      return response.data;
+      return response.data.data;
     },
-    onSuccess: () => {
+    onSuccess: (createdPost) => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       setPostContent('');
-      toast.success('Post created successfully!');
+      toast.success('Post created successfully!', {
+        action: createdPost?.id
+          ? {
+              label: 'View Post',
+              onClick: () => router.push(`/community/post/${createdPost.id}`),
+            }
+          : undefined,
+      });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to create post');
@@ -86,14 +95,24 @@ export function CommunityFeed() {
 
   const handlePostClick = () => {
     if (!guard()) return;
+    if (createPostMutation.isPending) return;
     if (!postContent.trim()) {
       toast.error('Please write something');
       return;
     }
 
+    const [rawTitle, ...restLines] = postContent.split('\n');
+    const trimmedTitleLine = rawTitle.trim();
+    const title = trimmedTitleLine.slice(0, 100);
+    const hasNewline = restLines.length > 0;
+    const remainingTitleText = trimmedTitleLine.slice(100).trim();
+    const content = hasNewline
+      ? restLines.join('\n').trim()
+      : remainingTitleText;
+
     createPostMutation.mutate({
-      title: postContent.slice(0, 100), // Use first 100 chars as title
-      content: postContent,
+      title,
+      content: content || title,
     });
   };
 
@@ -291,7 +310,7 @@ export function CommunityFeed() {
             </Button>
           </div>
           <Button onClick={handlePostClick} size="sm" className="font-bold">
-            Post
+            {createPostMutation.isPending ? 'Posting...' : 'Post'}
           </Button>
         </div>
       </div>
