@@ -75,7 +75,14 @@ export const AgentInstructions = memo(
   )
 );
 
-export type AgentToolsProps = ComponentProps<typeof Accordion>;
+export type AgentToolsProps = Omit<
+  ComponentProps<typeof Accordion>,
+  'type' | 'value' | 'defaultValue' | 'onValueChange'
+> & {
+  value?: string[];
+  defaultValue?: string[];
+  onValueChange?(value: string[]): void;
+};
 
 export const AgentTools = memo(({ className, ...props }: AgentToolsProps) => (
   <div className={cn("space-y-2", className)}>

@@ -205,8 +205,8 @@ export function highlightCode(
 
       const tokenized: TokenizedCode = {
         tokens: result.tokens,
-        fg: result.fg,
-        bg: result.bg,
+        fg: result.fg as any,
+        bg: result.bg as any,
       };
 
       // Cache the result

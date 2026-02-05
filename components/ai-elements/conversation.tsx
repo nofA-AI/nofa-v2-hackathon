@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ArrowDownIcon } from "lucide-react";
 import type { ComponentProps } from "react";
-import { useCallback, forwardRef } from "react";
+import { useCallback } from "react";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
 export type ConversationProps = ComponentProps<typeof StickToBottom>;
@@ -23,18 +23,15 @@ export type ConversationContentProps = ComponentProps<
   typeof StickToBottom.Content
 >;
 
-export const ConversationContent = forwardRef<
-  HTMLDivElement,
-  ConversationContentProps
->(({ className, ...props }, ref) => (
+export const ConversationContent = ({
+  className,
+  ...props
+}: ConversationContentProps) => (
   <StickToBottom.Content
-    ref={ref}
     className={cn("flex flex-col gap-8 p-4", className)}
     {...props}
   />
-));
-
-ConversationContent.displayName = "ConversationContent";
+);
 
 export type ConversationEmptyStateProps = ComponentProps<"div"> & {
   title?: string;

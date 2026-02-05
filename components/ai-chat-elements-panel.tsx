@@ -67,7 +67,7 @@ import {
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import type { UIMessage } from "ai";
 import { CheckIcon, GlobeIcon, MicIcon } from "lucide-react";
-import { useCallback, useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { models, type modelID } from "@/lib/models";
 import { AIChatInput } from "@/components/ai-chat-input";
@@ -196,7 +196,6 @@ const AIChatElementsPanel = ({
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const [useWebSearch, setUseWebSearch] = useState<boolean>(false);
   const [useMicrophone, setUseMicrophone] = useState<boolean>(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const storageKey = getStorageKey();
 
@@ -253,17 +252,6 @@ const AIChatElementsPanel = ({
       // Ignore persistence errors
     }
   }, [messages, storageKey]);
-
-  // Auto-scroll to bottom when messages update
-  useEffect(() => {
-    if (scrollContainerRef.current) {
-      setTimeout(() => {
-        if (scrollContainerRef.current) {
-          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-        }
-      }, 0);
-    }
-  }, [messages, status]);
 
   // Hydrate chat history on mount
   useEffect(() => {
@@ -336,7 +324,7 @@ const AIChatElementsPanel = ({
   return (
     <div className="relative flex size-full flex-col divide-y overflow-hidden bg-white" style={width ? { flex: `0 0 ${width}%` } : {}}>
       <Conversation>
-        <ConversationContent ref={scrollContainerRef}>
+        <ConversationContent>
           {messages.length === 0 ? (
             <div className="space-y-4 p-4">
               <p className="text-sm text-muted-foreground">
